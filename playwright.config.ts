@@ -27,7 +27,7 @@ const PORT = 3123;
 export const E2E_ENV = {
   NEXT_PUBLIC_SUPABASE_URL: "https://e2etest.supabase.co",
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "e2e-anon-key-not-a-real-key",
-  NEXT_PUBLIC_SERVICE_ROLE_KEY: "e2e-service-role-key-not-a-real-key",
+  SUPABASE_SERVICE_ROLE_KEY: "e2e-service-role-key-not-a-real-key",
   STUDENT_PORTAL_JWT_SECRET: "e2e-jwt-secret-not-a-real-secret",
 };
 

@@ -18,7 +18,7 @@ City. Deleted data is gone permanently.
 - `supabase db reset`, `db push --force`, `db remote commit`, or anything that re-applies the migration history
 - Rewriting, renaming, deleting, or editing an **already-applied** migration file in `supabase/migrations/` — history is immutable; write a new numbered migration instead
 - "Cleanup", "seeding", "test data", or "let me just recreate the table" operations
-- Running an ad-hoc script against `NEXT_PUBLIC_SERVICE_ROLE_KEY` — that key bypasses every RLS policy
+- Running an ad-hoc script against `SUPABASE_SERVICE_ROLE_KEY` — that key bypasses every RLS policy
 
 **Read-only is always safe.** `SELECT`, `EXPLAIN`, schema introspection, reading migration files,
 and `npm run build` / `lint` / `tsc` need no permission.
@@ -79,7 +79,7 @@ npm run start    # Run production server
 npm run lint     # ESLint
 ```
 
-**Required env vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SERVICE_ROLE_KEY`, `STUDENT_PORTAL_JWT_SECRET`
+**Required env vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `STUDENT_PORTAL_JWT_SECRET`
 
 ---
 
