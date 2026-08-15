@@ -1,17 +1,39 @@
 "use client";
 
 import { PublicPageBackground } from "@/components/PublicPageBackground";
+import { APP_NAME, ORG_FOOTER, ORG_NAME } from "@/lib/constants/branding";
 import { supabase } from "@/lib/supabase/client";
-import { AlertCircle, Loader2, Shield } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import LoadingSkeleton from "./LoadingSkeleton";
 import { Button } from "./ui/button";
 
 interface LoginBoxProps {
   message?: string;
+}
+
+/**
+ * Shown while the existing session is being resolved, before we know whether
+ * to redirect to /home or render the sign-in card. Same paper ground as the
+ * card itself so there is no flash between the two states.
+ */
+function SessionCheck() {
+  return (
+    <main className="font-ui relative flex min-h-screen items-center justify-center px-4">
+      <PublicPageBackground />
+      <div className="relative z-10 flex flex-col items-center gap-5">
+        <div className="flex h-11 w-11 items-center justify-center rounded-sm border border-[var(--rule)] bg-[var(--paper-raised)]">
+          <Loader2
+            className="h-5 w-5 animate-spin text-[var(--brass)]"
+            strokeWidth={1.75}
+          />
+        </div>
+        <p className="label-data text-[var(--ink-3)]">Checking session</p>
+      </div>
+    </main>
+  );
 }
 
 export default function LoginBox({ message }: LoginBoxProps) {
@@ -51,39 +73,51 @@ export default function LoginBox({ message }: LoginBoxProps) {
   };
 
   if (checkingSession) {
-    return <LoadingSkeleton />;
+    return <SessionCheck />;
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4 py-12">
+    <main className="font-ui relative flex min-h-screen flex-col items-center justify-center px-4 py-16">
       <PublicPageBackground />
 
-      <div className="w-full max-w-md relative z-10">
-        <div className="relative overflow-hidden rounded-3xl bg-white/15 backdrop-blur-xl border border-white/25 p-8 sm:p-10 shadow-2xl">
-          <div className="space-y-6 text-center pb-8">
-            <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-500/30 border border-emerald-400/30 flex items-center justify-center mb-2">
-              <Shield className="h-7 w-7 text-emerald-300" strokeWidth={2} />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">
-              School Management System
+      <div className="relative z-10 w-full max-w-[26rem] animate-fade-up">
+        {/* Masthead above the card, the way a form is headed */}
+        <div className="mb-7 flex items-center gap-3.5">
+          <div className="relative h-11 w-11 shrink-0 rounded-sm border border-[var(--rule)] bg-[var(--paper-raised)] p-1.5">
+            <Image
+              src="/deped-logo.svg"
+              alt=""
+              fill
+              className="object-contain p-1"
+              priority
+            />
+          </div>
+          <div>
+            <p className="font-display text-lg leading-tight text-[var(--ink)]">
+              {APP_NAME}
+            </p>
+            <p className="label-data mt-0.5 text-[var(--ink-3)]">{ORG_NAME}</p>
+          </div>
+        </div>
+
+        <div className="border-t-2 border-[var(--ink)] bg-[var(--paper-raised)] shadow-sm shadow-[var(--ink)]/5">
+          <div className="border-b border-[var(--rule)] px-7 py-5">
+            <p className="label-data text-[var(--brass)]">Staff access</p>
+            <h1 className="font-display mt-2 text-2xl leading-tight text-[var(--ink)]">
+              Sign in to your account
             </h1>
-            <p className="text-base font-medium text-white/90">
-              Schools Division of Bayugan City
-            </p>
-            <p className="text-sm text-white/75 pt-1">
-              Sign in to access your account
-            </p>
           </div>
 
-          <div className="relative space-y-6 pb-6">
+          <div className="space-y-5 px-7 py-7">
             {(errorMessage || message) && (
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/20 border border-red-400/30 text-red-200 animate-in fade-in-0 slide-in-from-top-2">
-                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">
-                    {errorMessage || message}
-                  </p>
-                </div>
+              <div className="flex items-start gap-3 border-l-2 border-[#a33a2c] bg-[#a33a2c]/[0.06] px-4 py-3.5">
+                <AlertCircle
+                  className="mt-0.5 h-4 w-4 shrink-0 text-[#a33a2c]"
+                  strokeWidth={1.75}
+                />
+                <p className="text-[13px] leading-relaxed text-[#7d2b20]">
+                  {errorMessage || message}
+                </p>
               </div>
             )}
 
@@ -91,21 +125,20 @@ export default function LoginBox({ message }: LoginBoxProps) {
               onClick={handleGoogleLogin}
               disabled={isLoading}
               variant="outline"
-              size="lg"
-              className="w-full h-14 text-base font-semibold rounded-xl border-2 border-white/35 bg-white/15 hover:bg-white/25 text-white hover:text-white shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.01] active:scale-[0.99]"
+              className="h-12 w-full rounded-sm border border-[var(--rule)] bg-[var(--paper)] text-[14px] font-medium tracking-tight text-[var(--ink)] transition-colors hover:border-[var(--ink-3)] hover:bg-[var(--paper)] hover:text-[var(--ink)]"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Connecting...</span>
+                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
+                  <span>Connecting…</span>
                 </>
               ) : (
                 <>
                   <Image
                     src="/icons8-google-100.svg"
-                    alt="Google"
-                    width={22}
-                    height={22}
+                    alt=""
+                    width={18}
+                    height={18}
                     className="shrink-0"
                   />
                   <span>Continue with Google</span>
@@ -113,29 +146,28 @@ export default function LoginBox({ message }: LoginBoxProps) {
               )}
             </Button>
 
-            <div className="text-center pt-2">
-              <p className="text-xs text-white/60 leading-relaxed max-w-[280px] mx-auto">
-                By continuing, you agree to our terms of service and privacy
-                policy
-              </p>
-            </div>
+            <p className="text-[12px] leading-relaxed text-[var(--ink-3)]">
+              Staff accounts are created by the division office. If your account
+              is not yet registered, sign-in will be refused.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-[var(--rule)] bg-[var(--paper)]/60 px-7 py-3.5">
+            <span className="label-data text-[10px] text-[var(--ink-3)]">
+              Google OAuth
+            </span>
+            <Link
+              href="/"
+              className="text-[12px] text-[var(--ink-3)] transition-colors hover:text-[var(--ink)]"
+            >
+              ← Back to home
+            </Link>
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col items-center gap-4">
-          <div className="flex items-center justify-center gap-2 text-white/75">
-            <Shield className="h-4 w-4 text-emerald-400/80" />
-            <p className="text-sm font-medium">
-              Secure authentication powered by Google
-            </p>
-          </div>
-          <Link
-            href="/"
-            className="text-sm font-medium text-white/90 hover:text-white transition-colors"
-          >
-            ← Back to home
-          </Link>
-        </div>
+        <p className="label-data mt-6 text-center text-[10px] text-[var(--ink-3)]">
+          {ORG_FOOTER}
+        </p>
       </div>
     </main>
   );

@@ -10,9 +10,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getSchoolTypeLabel } from "@/lib/constants";
+import { ORG_NAME } from "@/lib/constants/branding";
 import { supabase } from "@/lib/supabase/client";
 import { Building2, MapPin, School } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -28,15 +28,15 @@ interface School {
 
 function getSchoolTypeBadgeClass(type: string | null): string {
   const classes: Record<string, string> = {
-    elementary: "bg-amber-50 text-amber-700 border-amber-200",
-    junior_high: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    senior_high: "bg-violet-50 text-violet-700 border-violet-200",
-    complete_secondary: "bg-rose-50 text-rose-700 border-rose-200",
-    integrated: "bg-blue-50 text-blue-700 border-blue-200",
+    elementary: "border-[var(--band-elem)]/30 bg-[var(--band-elem)]/8 text-[var(--band-elem)]",
+    junior_high: "border-[var(--band-jhs)]/30 bg-[var(--band-jhs)]/8 text-[var(--band-jhs)]",
+    senior_high: "border-[var(--band-shs)]/30 bg-[var(--band-shs)]/8 text-[var(--band-shs)]",
+    complete_secondary: "border-[var(--brass)]/30 bg-[var(--brass)]/8 text-[var(--brass)]",
+    integrated: "border-[var(--ink-3)]/30 bg-[var(--ink-3)]/8 text-[var(--ink-2)]",
   };
   return type
-    ? (classes[type] ?? "bg-gray-50 text-gray-700 border-gray-200")
-    : "bg-gray-50 text-gray-500 border-gray-200";
+    ? (classes[type] ?? "border-[var(--rule)] bg-[var(--paper-raised)] text-[var(--ink-2)]")
+    : "border-[var(--rule)] bg-[var(--paper-raised)] text-[var(--ink-3)]";
 }
 
 export default function SchoolListPage() {
@@ -74,123 +74,122 @@ export default function SchoolListPage() {
   }, [fetchSchools]);
 
   return (
-    <div className="bg-slate-50 min-h-screen pt-20 sm:pt-24 pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Page header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors shrink-0"
-            >
-              ← Back
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white border border-gray-200 shadow-sm">
-                <Building2 className="h-5 w-5 text-gray-600" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  Public Schools
-                </h1>
-                <p className="text-sm text-gray-500">
-                  Schools Division of Bayugan City
-                </p>
-              </div>
-            </div>
+    <div className="paper-ground paper-grain font-ui relative min-h-screen pb-20 text-[var(--ink-2)]">
+      {/* Masthead */}
+      <header className="border-b border-[var(--rule)]">
+        <div className="mx-auto max-w-7xl px-4 pb-12 pt-28 sm:px-6 sm:pb-16 sm:pt-36 lg:px-8">
+          <div className="animate-fade-up">
+            <p className="label-data flex items-center gap-3 text-[var(--brass)]">
+              <Building2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+              {ORG_NAME}
+            </p>
+            <h1 className="font-display mt-4 text-4xl leading-[1.05] tracking-tight text-[var(--ink)] sm:text-5xl">
+              School Directory
+            </h1>
+            <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-[var(--ink-2)]">
+              Every active public school in the division. Select a row to open
+              that school&apos;s page.
+            </p>
           </div>
         </div>
+      </header>
 
-        {/* Content card */}
-        <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 sm:p-8">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <School className="h-5 w-5 text-blue-600" />
-              School List
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              List of all active schools in this division
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mb-6 flex items-end justify-between border-b border-[var(--rule)] pb-4">
+          <p className="label-data text-[var(--ink-3)]">
+            <School className="mr-2 inline h-3.5 w-3.5" strokeWidth={1.75} />
+            Active schools
+          </p>
+          {!loading && (
+            <p className="font-data text-[11px] text-[var(--ink-3)]">
+              {schools.length} on record
             </p>
-          </div>
-          {loading ? (
-            <div className="space-y-4 py-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-4 py-3 border-b border-gray-100 last:border-0"
-                >
-                  <Skeleton className="h-4 w-20 bg-gray-100" />
-                  <Skeleton className="h-4 flex-1 bg-gray-100" />
-                  <Skeleton className="h-6 w-24 rounded-full bg-gray-100" />
-                  <Skeleton className="h-4 w-32 hidden md:block bg-gray-100" />
-                  <Skeleton className="h-4 w-16 hidden lg:block bg-gray-100" />
-                </div>
-              ))}
-            </div>
-          ) : schools.length === 0 ? (
-            <p className="text-gray-500 text-sm py-12 text-center rounded-2xl bg-gray-50">
-              No schools found.
-            </p>
-          ) : (
-            <div className="rounded-xl border border-gray-200 overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-200 hover:bg-transparent">
-                    <TableHead className="bg-gray-50 font-semibold text-gray-900">
-                      School ID
-                    </TableHead>
-                    <TableHead className="bg-gray-50 font-semibold text-gray-900">
-                      Name
-                    </TableHead>
-                    <TableHead className="bg-gray-50 font-semibold text-gray-900">
-                      Type
-                    </TableHead>
-                    <TableHead className="bg-gray-50 font-semibold text-gray-900 hidden md:table-cell">
-                      Address
-                    </TableHead>
-                    <TableHead className="bg-gray-50 font-semibold text-gray-900 hidden lg:table-cell">
-                      District
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {schools.map((s) => (
-                    <TableRow
-                      key={s.id}
-                      className="border-gray-100 transition-colors hover:bg-gray-50/80 cursor-pointer"
-                      onClick={() => router.push(`/schools/${s.slug}`)}
-                    >
-                      <TableCell className="font-mono font-medium text-blue-600">
-                        {s.school_id}
-                      </TableCell>
-                      <TableCell className="font-medium text-gray-900">
-                        {s.name}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border ${getSchoolTypeBadgeClass(
-                            s.school_type,
-                          )}`}
-                        >
-                          {getSchoolTypeLabel(s.school_type)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-gray-600 hidden md:table-cell">
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                          {s.address || "-"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-gray-600 hidden lg:table-cell">
-                        {s.district || "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
           )}
         </div>
+
+        {loading ? (
+          <div className="border-t border-[var(--rule)]">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 border-b border-[var(--rule)] py-4"
+              >
+                <Skeleton className="h-4 w-20 rounded-sm bg-[var(--rule-faint)]" />
+                <Skeleton className="h-4 flex-1 rounded-sm bg-[var(--rule-faint)]" />
+                <Skeleton className="hidden h-4 w-24 rounded-sm bg-[var(--rule-faint)] md:block" />
+                <Skeleton className="hidden h-4 w-32 rounded-sm bg-[var(--rule-faint)] lg:block" />
+              </div>
+            ))}
+          </div>
+        ) : schools.length === 0 ? (
+          <div className="border border-dashed border-[var(--rule)] py-20 text-center">
+            <p className="font-display text-lg text-[var(--ink)]">
+              No schools on record
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto border-t-2 border-[var(--ink)]">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-[var(--rule)] hover:bg-transparent">
+                  {["School ID", "Name", "Type", "Address", "District"].map(
+                    (h, i) => (
+                      <TableHead
+                        key={h}
+                        className={`label-data h-auto py-3 text-[var(--ink-3)] ${
+                          i === 3
+                            ? "hidden md:table-cell"
+                            : i === 4
+                              ? "hidden lg:table-cell"
+                              : ""
+                        }`}
+                      >
+                        {h}
+                      </TableHead>
+                    ),
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {schools.map((s) => (
+                  <TableRow
+                    key={s.id}
+                    className="cursor-pointer border-[var(--rule)] transition-colors hover:bg-[var(--paper-raised)]/70"
+                    onClick={() => router.push(`/schools/${s.slug}`)}
+                  >
+                    <TableCell className="font-data py-4 text-[13px] text-[var(--brass)]">
+                      {s.school_id}
+                    </TableCell>
+                    <TableCell className="font-display py-4 text-[15px] text-[var(--ink)]">
+                      {s.name}
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <span
+                        className={`inline-flex items-center rounded-sm border px-2.5 py-1 text-[11px] font-medium ${getSchoolTypeBadgeClass(
+                          s.school_type,
+                        )}`}
+                      >
+                        {getSchoolTypeLabel(s.school_type)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden py-4 text-[13px] text-[var(--ink-2)] md:table-cell">
+                      <span className="flex items-center gap-1.5">
+                        <MapPin
+                          className="h-3.5 w-3.5 shrink-0 text-[var(--ink-3)]"
+                          strokeWidth={1.75}
+                        />
+                        {s.address || "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden py-4 text-[13px] text-[var(--ink-2)] lg:table-cell">
+                      {s.district || "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     </div>
   );

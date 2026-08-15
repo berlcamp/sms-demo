@@ -202,7 +202,7 @@ export function ExamScanWorkspace({ examId, mode }: ExamScanWorkspaceProps) {
     }
     try {
       generateAnswerSheets({
-        schoolName: schoolName || "Schools Division of Bayugan City",
+        schoolName: schoolName || "Division Office",
         examTitle,
         subjectName: exam.tos.subject_name,
         sectionName: "SAMPLE",

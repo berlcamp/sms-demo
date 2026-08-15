@@ -117,7 +117,7 @@ export function DivisionHeader() {
               </div>
               <div className="hidden sm:flex flex-col min-w-0">
                 <p className="text-sm font-bold text-slate-900 tracking-tight leading-tight truncate">
-                  SDO Bayugan City
+                  Division Office
                 </p>
                 <p className="text-[11px] text-slate-500 font-medium truncate">
                   Division Dashboard

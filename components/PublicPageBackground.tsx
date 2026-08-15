@@ -1,16 +1,25 @@
+/**
+ * Ground for the public interstitials — login, the auth callback, 404.
+ *
+ * No background photograph. Atmosphere comes from a warm paper wash, a faint
+ * ledger grid and a grain overlay, so the surface still has depth without
+ * loading an image or forcing every caption on top of it to be white.
+ *
+ * Everything drawn here is ink-on-paper, which means the pages that mount it
+ * use dark type. Do not put white text over this.
+ */
 export function PublicPageBackground() {
   return (
-    <div className="fixed inset-0 -z-10" aria-hidden>
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105"
-        style={{ backgroundImage: "url(/home.jpg)" }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-900/85 via-slate-900/75 to-slate-900/90" />
+    <div className="paper-ground paper-grain fixed inset-0 -z-10" aria-hidden>
+      {/* Brass hairline along the very top — the one warm accent. */}
+      <div className="absolute inset-x-0 top-0 h-px bg-[var(--brass)]/35" />
 
-      {/* Subtle gradient orbs */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-slate-500/5 blur-3xl animate-[float_20s_ease-in-out_infinite]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-slate-600/5 blur-3xl animate-[float_25s_ease-in-out_infinite_reverse]" />
-      <div className="absolute top-[40%] right-[20%] w-[300px] h-[300px] rounded-full bg-slate-500/4 blur-3xl animate-[float_18s_ease-in-out_infinite_2s]" />
+      {/* Two soft washes, drifting slowly, to keep large areas from going flat. */}
+      <div className="absolute -top-[25%] -left-[15%] h-[620px] w-[620px] rounded-full bg-[var(--brass)]/[0.045] blur-3xl animate-[float_24s_ease-in-out_infinite]" />
+      <div className="absolute -bottom-[20%] -right-[10%] h-[560px] w-[560px] rounded-full bg-[var(--band-shs)]/[0.05] blur-3xl animate-[float_30s_ease-in-out_infinite_reverse]" />
+
+      {/* Weighted rule near the foot, the way a form is closed off. */}
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[var(--rule-faint)]/60 to-transparent" />
     </div>
   );
 }

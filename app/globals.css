@@ -47,15 +47,109 @@
   transform-origin: bottom;
 }
 
+@keyframes rule-draw {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.animate-rule-draw {
+  animation: rule-draw 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: left;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-fade-in,
   .animate-scale-in,
-  .animate-bar-grow {
+  .animate-bar-grow,
+  .animate-rule-draw {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   PUBLIC SURFACE DESIGN TOKENS — "civic register"
+   ---------------------------------------------------------------------------
+   The landing page, login, 404 and the auth interstitials share one look: a
+   warm paper ground, ink navy type, hairline rules, an editorial serif for
+   display and a mono for figures. Depth comes from rules and tone, never from
+   photography — there is no background image anywhere on these surfaces.
+
+   Scoped on purpose. These are opt-in classes rather than a change to
+   --font-sans or --background, so the authenticated app behind /home keeps the
+   shadcn theme it was built against.
+   --------------------------------------------------------------------------- */
+:root {
+  --paper: #f6f4ef;
+  --paper-raised: #fffefb;
+  --ink: #16212e;
+  --ink-2: #3d4c5c;
+  --ink-3: #6e7c89;
+  --rule: #dcd8ce;
+  --rule-faint: #e9e5db;
+  --brass: #8c5a2b;
+
+  /* Grade bands. Chosen to stay distinguishable in greyscale and to print. */
+  --band-elem: #b0653a;
+  --band-jhs: #3f6f63;
+  --band-shs: #3b4e86;
+}
+
+.font-display {
+  font-family: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+.font-ui {
+  font-family: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-data {
+  font-family: var(--font-plex-mono), ui-monospace, "SFMono-Regular", monospace;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Eyebrow / label treatment used above every section heading. */
+.label-data {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Paper ground: warm base, a light wash from the top, and a faint ledger grid
+   standing in for the texture the photograph used to provide. */
+.paper-ground {
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(
+      110% 70% at 50% -10%,
+      rgba(255, 255, 255, 0.85),
+      rgba(255, 255, 255, 0) 62%
+    ),
+    repeating-linear-gradient(
+      to right,
+      rgba(22, 33, 46, 0.032) 0 1px,
+      transparent 1px 88px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(22, 33, 46, 0.032) 0 1px,
+      transparent 1px 88px
+    );
+}
+
+/* Fine grain over the ground so large flat areas do not read as flat vector. */
+.paper-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E");
 }
 
 @theme inline {

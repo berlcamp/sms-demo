@@ -1,19 +1,18 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { APP_NAME, ORG_NAME } from "@/lib/constants/branding";
 import {
   Building2,
   ChevronDown,
   GraduationCap,
   Home,
   List,
-  LogIn,
   UserCircle,
 } from "lucide-react";
 import Image from "next/image";
@@ -32,120 +31,112 @@ export function LandingNav() {
   const pathname = usePathname();
   const schoolYear = getDefaultSchoolYear();
 
-  const navLinkClass = (active: boolean) =>
-    `text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 h-9 px-3.5 rounded-lg transition-all duration-200 ${
-      active ? "bg-white/15 text-white" : ""
+  // Active state is a rule under the item, not a filled pill — it reads as a
+  // tab in a register rather than a button.
+  const navLink = (active: boolean) =>
+    `font-ui relative inline-flex items-center gap-1.5 h-16 px-3 text-[13px] font-medium tracking-tight transition-colors ${
+      active
+        ? "text-[var(--ink)]"
+        : "text-[var(--ink-3)] hover:text-[var(--ink)]"
+    } after:absolute after:inset-x-3 after:bottom-0 after:h-px after:transition-transform after:duration-300 after:origin-left ${
+      active
+        ? "after:bg-[var(--brass)] after:scale-x-100"
+        : "after:bg-[var(--ink-3)]/40 after:scale-x-0 hover:after:scale-x-100"
     }`;
 
   return (
-    <header className="fixed w-full top-0 z-40 backdrop-blur-xl bg-slate-900/60 border-b border-white/10 shadow-lg shadow-black/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav className="flex items-center justify-between h-16">
-          {/* Logo + Title */}
-          <Link
-            href="/"
-            className="flex items-center gap-3 shrink-0 group"
-          >
-            <div className="relative h-10 w-10 flex-shrink-0 rounded-xl bg-white/10 p-1 ring-1 ring-white/15 transition-all group-hover:ring-white/30 group-hover:bg-white/15">
+    <header className="fixed top-0 z-40 w-full border-b border-[var(--rule)] bg-[var(--paper)]/92 backdrop-blur-md">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <nav className="flex h-16 items-center justify-between gap-4">
+          {/* Wordmark */}
+          <Link href="/" className="group flex shrink-0 items-center gap-3">
+            <div className="relative h-9 w-9 shrink-0 rounded-sm border border-[var(--rule)] bg-[var(--paper-raised)] p-1 transition-colors group-hover:border-[var(--brass)]/50">
               <Image
                 src="/deped-logo.svg"
-                alt="DepEd Logo"
+                alt=""
                 fill
-                className="object-contain"
+                className="object-contain p-0.5"
                 priority
               />
             </div>
             <div className="hidden sm:block">
-              <p className="text-sm font-bold text-white tracking-tight leading-tight">
-                School Management System
+              <p className="font-ui text-[13px] font-semibold leading-tight tracking-tight text-[var(--ink)]">
+                {APP_NAME}
               </p>
-              <p className="text-xs text-white/50 font-medium">
-                Schools Division of Bayugan City
+              <p className="label-data mt-0.5 text-[10px] leading-none text-[var(--ink-3)]">
+                {ORG_NAME}
               </p>
             </div>
           </Link>
 
-          {/* Center Nav */}
+          {/* Sections */}
           <div className="flex items-center gap-1">
-            <Link href="/">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={navLinkClass(pathname === "/")}
-              >
-                <Home className="h-4 w-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">Home</span>
-              </Button>
+            <Link href="/" className={navLink(pathname === "/")}>
+              <Home className="h-4 w-4 sm:mr-0.5" strokeWidth={1.75} />
+              <span className="hidden sm:inline">Home</span>
             </Link>
 
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={navLinkClass(
-                    pathname?.startsWith("/schools") ||
-                      pathname?.startsWith("/learners") ||
-                      false,
-                  )}
-                >
-                  <Building2 className="h-4 w-4 sm:mr-1.5" />
-                  <span className="hidden sm:inline">Schools</span>
-                  <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-60" />
-                </Button>
+              <DropdownMenuTrigger
+                className={`${navLink(
+                  pathname?.startsWith("/schools") ||
+                    pathname?.startsWith("/learners") ||
+                    false,
+                )} outline-none`}
+              >
+                <Building2 className="h-4 w-4 sm:mr-0.5" strokeWidth={1.75} />
+                <span className="hidden sm:inline">Schools</span>
+                <ChevronDown className="ml-0.5 h-3 w-3 opacity-50" />
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                className="w-48 bg-white border-gray-200 shadow-lg"
+                className="w-52 rounded-sm border-[var(--rule)] bg-[var(--paper-raised)] p-1 shadow-lg shadow-[var(--ink)]/5"
               >
                 <DropdownMenuItem asChild>
                   <Link
                     href="/schools"
-                    className="cursor-pointer flex items-center gap-2 text-gray-700 hover:text-gray-900 focus:text-gray-900 focus:bg-gray-50"
+                    className="font-ui flex cursor-pointer items-center gap-2.5 rounded-sm text-[13px] text-[var(--ink-2)] focus:bg-[var(--paper)] focus:text-[var(--ink)]"
                   >
-                    <List className="h-4 w-4" />
-                    School List
+                    <List className="h-4 w-4 text-[var(--ink-3)]" strokeWidth={1.75} />
+                    School Directory
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link
                     href="/learners"
-                    className="cursor-pointer flex items-center gap-2 text-gray-700 hover:text-gray-900 focus:text-gray-900 focus:bg-gray-50"
+                    className="font-ui flex cursor-pointer items-center gap-2.5 rounded-sm text-[13px] text-[var(--ink-2)] focus:bg-[var(--paper)] focus:text-[var(--ink)]"
                   >
-                    <GraduationCap className="h-4 w-4" />
-                    Learners
+                    <GraduationCap
+                      className="h-4 w-4 text-[var(--ink-3)]"
+                      strokeWidth={1.75}
+                    />
+                    Learners by School
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Link href="/student-portal">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={navLinkClass(
-                  pathname?.startsWith("/student-portal") || false,
-                )}
-              >
-                <UserCircle className="h-4 w-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">Student Portal</span>
-              </Button>
+            <Link
+              href="/student-portal"
+              className={navLink(
+                pathname?.startsWith("/student-portal") || false,
+              )}
+            >
+              <UserCircle className="h-4 w-4 sm:mr-0.5" strokeWidth={1.75} />
+              <span className="hidden sm:inline">Student Portal</span>
             </Link>
           </div>
 
-          {/* Right side */}
-          <div className="flex items-center gap-3">
-            <span className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold text-white/70 bg-white/8 border border-white/12 px-3 py-1.5 rounded-full">
+          {/* Right rail */}
+          <div className="flex items-center gap-4">
+            <span className="label-data hidden text-[10px] text-[var(--ink-3)] md:inline">
               SY {schoolYear}
             </span>
-            <Link href="/login">
-              <Button
-                size="sm"
-                className="bg-white text-slate-900 hover:bg-white/90 font-semibold h-9 px-4 rounded-lg shadow-lg shadow-white/5 transition-all duration-200 hover:shadow-white/10"
-              >
-                <LogIn className="h-4 w-4 mr-1.5" />
-                Sign In
-              </Button>
+            <Link
+              href="/login"
+              className="font-ui inline-flex h-9 items-center rounded-sm bg-[var(--ink)] px-4 text-[13px] font-medium text-[var(--paper)] transition-colors hover:bg-[var(--ink-2)]"
+            >
+              Staff Sign In
             </Link>
           </div>
         </nav>

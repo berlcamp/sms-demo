@@ -2,6 +2,7 @@
 
 import { PublicPageBackground } from "@/components/PublicPageBackground";
 import { supabase } from "@/lib/supabase/client";
+import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 
 export default function ValidateUserPage() {
@@ -54,11 +55,17 @@ export default function ValidateUserPage() {
   }, []);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center relative">
+    <main className="font-ui relative flex min-h-screen flex-col items-center justify-center px-4">
       <PublicPageBackground />
-      <p className="text-center mt-10 relative z-10 text-white">
-        Verifying your account...
-      </p>
+      <div className="relative z-10 flex flex-col items-center gap-5">
+        <div className="flex h-11 w-11 items-center justify-center rounded-sm border border-[var(--rule)] bg-[var(--paper-raised)]">
+          <Loader2
+            className="h-5 w-5 animate-spin text-[var(--brass)]"
+            strokeWidth={1.75}
+          />
+        </div>
+        <p className="label-data text-[var(--ink-3)]">Verifying your account</p>
+      </div>
     </main>
   );
 }

@@ -574,7 +574,7 @@ export default function HistoricalGradeForm({
                   <Input
                     value={schoolName}
                     onChange={(e) => setSchoolName(e.target.value)}
-                    placeholder="e.g., Bayugan Central Elementary School"
+                    placeholder="e.g., Central Elementary School"
                   />
                 </div>
                 <div>

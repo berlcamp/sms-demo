@@ -2,27 +2,25 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { getGradeLevelLabel } from "@/lib/constants";
+import { APP_NAME, ORG_FOOTER, ORG_NAME } from "@/lib/constants/branding";
 import { supabase } from "@/lib/supabase/client";
-import {
-  ArrowRight,
-  BookOpen,
-  FileText,
-  GraduationCap,
-  School,
-  TrendingUp,
-  UserCircle,
-  Users,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+
+interface Band {
+  male: number;
+  female: number;
+  total: number;
+}
 
 interface EnrollmentStats {
   male: number;
   female: number;
   total: number;
-  elementary: { male: number; female: number; total: number };
-  juniorHigh: { male: number; female: number; total: number };
-  seniorHigh: { male: number; female: number; total: number };
+  elementary: Band;
+  juniorHigh: Band;
+  seniorHigh: Band;
   byGradeLevel: { grade: number; count: number }[];
 }
 
@@ -45,20 +43,6 @@ function getSchoolYearOptions(): string[] {
   return options;
 }
 
-function StatCardSkeleton() {
-  return (
-    <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-6 h-48">
-      <Skeleton className="h-10 w-10 rounded-xl bg-gray-100" />
-      <Skeleton className="h-4 w-24 mt-4 bg-gray-100" />
-      <Skeleton className="h-3 w-16 mt-2 bg-gray-50" />
-      <div className="flex gap-4 mt-5">
-        <Skeleton className="h-8 w-16 bg-gray-50" />
-        <Skeleton className="h-8 w-16 bg-gray-50" />
-      </div>
-    </div>
-  );
-}
-
 function AnimatedNumber({ value }: { value: number }) {
   const [display, setDisplay] = useState(0);
 
@@ -67,21 +51,50 @@ function AnimatedNumber({ value }: { value: number }) {
       setDisplay(0);
       return;
     }
-    const duration = 800;
-    const steps = 30;
+    const duration = 900;
+    const steps = 32;
     const increment = value / steps;
-    let current = 0;
     let step = 0;
     const timer = setInterval(() => {
       step++;
-      current = Math.min(Math.round(increment * step), value);
-      setDisplay(current);
+      setDisplay(Math.min(Math.round(increment * step), value));
       if (step >= steps) clearInterval(timer);
     }, duration / steps);
     return () => clearInterval(timer);
   }, [value]);
 
   return <>{display.toLocaleString()}</>;
+}
+
+/** Section heading: mono eyebrow over a serif title, closed with a hairline. */
+function SectionHead({
+  index,
+  eyebrow,
+  title,
+  aside,
+}: {
+  index: string;
+  eyebrow: string;
+  title: string;
+  aside?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-8 border-b border-[var(--rule)] pb-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="label-data flex items-center gap-2.5 text-[var(--brass)]">
+            <span>{index}</span>
+            <span className="h-px w-6 bg-[var(--brass)]/45" />
+            <span className="text-[var(--ink-3)]">{eyebrow}</span>
+          </p>
+          <h2 className="font-display mt-2.5 text-[26px] font-normal leading-tight tracking-tight text-[var(--ink)] sm:text-3xl">
+            {title}
+          </h2>
+        </div>
+        {aside}
+      </div>
+    </div>
+  );
 }
 
 export default function LandingHomePage() {
@@ -179,288 +192,374 @@ export default function LandingHomePage() {
     fetchStats();
   }, [fetchStats]);
 
-  const statCards = [
-    {
-      key: "total",
-      icon: Users,
-      label: "Total Enrollment",
-      sub: "All grade levels",
-      iconBg: "bg-blue-50",
-      iconColor: "text-blue-600",
-      data: stats
-        ? { male: stats.male, female: stats.female, total: stats.total }
-        : null,
-    },
+  const ledger = [
     {
       key: "elementary",
-      icon: BookOpen,
+      no: "01",
       label: "Elementary",
-      sub: "Kinder – Grade 6",
-      iconBg: "bg-amber-50",
-      iconColor: "text-amber-600",
-      data: stats ? stats.elementary : null,
+      range: "Kindergarten – Grade 6",
+      color: "var(--band-elem)",
+      data: stats?.elementary ?? null,
     },
     {
       key: "juniorHigh",
-      icon: School,
-      label: "Junior High",
-      sub: "Grades 7 – 10",
-      iconBg: "bg-emerald-50",
-      iconColor: "text-emerald-600",
-      data: stats ? stats.juniorHigh : null,
+      no: "02",
+      label: "Junior High School",
+      range: "Grades 7 – 10",
+      color: "var(--band-jhs)",
+      data: stats?.juniorHigh ?? null,
     },
     {
       key: "seniorHigh",
-      icon: GraduationCap,
-      label: "Senior High",
-      sub: "Grades 11 – 12",
-      iconBg: "bg-violet-50",
-      iconColor: "text-violet-600",
-      data: stats ? stats.seniorHigh : null,
+      no: "03",
+      label: "Senior High School",
+      range: "Grades 11 – 12",
+      color: "var(--band-shs)",
+      data: stats?.seniorHigh ?? null,
     },
   ];
 
-  const quickLinks = [
+  const services = [
     {
+      no: "01",
       href: "/schools",
-      icon: School,
-      title: "Public Schools",
-      desc: "View all schools in the division",
-      iconBg: "bg-blue-50",
-      iconColor: "text-blue-600",
+      title: "School Directory",
+      desc: "Every public school in the division, with district, type and address.",
     },
     {
+      no: "02",
       href: "/learners",
-      icon: GraduationCap,
-      title: "Learners",
-      desc: "Enrollment data by school",
-      iconBg: "bg-emerald-50",
-      iconColor: "text-emerald-600",
+      title: "Learner Counts",
+      desc: "Enrollment by school and grade band for any school year on record.",
     },
     {
+      no: "03",
       href: "/requests",
-      icon: FileText,
       title: "Document Requests",
-      desc: "Request school records online",
-      iconBg: "bg-amber-50",
-      iconColor: "text-amber-600",
+      desc: "Request Form 137 and other school records, then track the request online.",
     },
     {
+      no: "04",
       href: "/student-portal",
-      icon: UserCircle,
       title: "Student Portal",
-      desc: "Access your grades and info",
-      iconBg: "bg-violet-50",
-      iconColor: "text-violet-600",
+      desc: "Learners sign in with their LRN to view grades and academic records.",
     },
   ];
 
-  const gradeBarColor = (grade: number) => {
-    if (grade <= 6) return "from-amber-400 to-orange-400";
-    if (grade <= 10) return "from-emerald-400 to-teal-400";
-    return "from-violet-400 to-purple-400";
+  const gradeBandColor = (grade: number) => {
+    if (grade <= 6) return "var(--band-elem)";
+    if (grade <= 10) return "var(--band-jhs)";
+    return "var(--band-shs)";
   };
 
+  const share = (n: number) =>
+    stats && stats.total > 0 ? (n / stats.total) * 100 : 0;
+
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Hero Section — dark background image spanning header + hero */}
-      <div className="relative pt-28 sm:pt-32 pb-20 sm:pb-28">
-        {/* Background image + overlay */}
-        <div className="absolute inset-0" aria-hidden>
-          <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105"
-            style={{ backgroundImage: "url(/home.jpg)" }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/70 to-slate-900/90" />
-        </div>
-        {/* Fade-to-white at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-50 to-transparent z-[1]" />
+    <div className="paper-ground paper-grain font-ui relative min-h-screen text-[var(--ink-2)]">
+      {/* ================================================================
+          MASTHEAD
+          ================================================================ */}
+      <header className="relative border-b border-[var(--rule)]">
+        <div className="mx-auto max-w-7xl px-4 pb-16 pt-32 sm:px-6 sm:pb-24 sm:pt-40 lg:px-8">
+          <div className="grid grid-cols-1 gap-x-12 gap-y-14 lg:grid-cols-12">
+            {/* Statement */}
+            <div className="lg:col-span-7">
+              <p
+                className="label-data flex items-center gap-3 text-[var(--brass)] animate-fade-up"
+                aria-label={ORG_NAME}
+              >
+                <span className="h-px w-8 bg-[var(--brass)]/50" />
+                {ORG_NAME}
+              </p>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl animate-fade-up">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm mb-6">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs font-medium text-white/80">
-                Schools Division of Bayugan City
-              </span>
+              <h1
+                className="font-display mt-6 text-[2.75rem] font-normal leading-[1.02] tracking-[-0.02em] text-[var(--ink)] animate-fade-up sm:text-6xl lg:text-[4.5rem]"
+                style={{ animationDelay: "0.05s" }}
+              >
+                A single record
+                <br />
+                for every{" "}
+                <span className="italic text-[var(--brass)]">learner</span>
+              </h1>
+
+              <div
+                className="mt-8 h-px w-24 bg-[var(--ink)]/25 animate-rule-draw"
+                style={{ animationDelay: "0.25s" }}
+              />
+
+              <p
+                className="mt-8 max-w-xl text-[15px] leading-relaxed text-[var(--ink-2)] animate-fade-up sm:text-base"
+                style={{ animationDelay: "0.15s" }}
+              >
+                Enrollment, academic records, attendance, learner health and the
+                official DepEd School Forms — kept in one place for every school
+                in the division, and published here for the public.
+              </p>
+
+              <div
+                className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 animate-fade-up"
+                style={{ animationDelay: "0.22s" }}
+              >
+                <Link
+                  href="/schools"
+                  className="group inline-flex h-11 items-center gap-2.5 rounded-sm bg-[var(--ink)] px-6 text-[13px] font-medium tracking-tight text-[var(--paper)] transition-colors hover:bg-[var(--ink-2)]"
+                >
+                  Browse the school directory
+                  <ArrowRight
+                    className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1"
+                    strokeWidth={1.75}
+                  />
+                </Link>
+                <Link
+                  href="/requests"
+                  className="group inline-flex items-center gap-1.5 border-b border-[var(--ink)]/25 pb-0.5 text-[13px] font-medium tracking-tight text-[var(--ink)] transition-colors hover:border-[var(--brass)] hover:text-[var(--brass)]"
+                >
+                  Request a school record
+                  <ArrowUpRight
+                    className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                    strokeWidth={1.75}
+                  />
+                </Link>
+              </div>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-white leading-[1.1]">
-              Empowering
-              <span className="block text-white/90">Quality Education</span>
-            </h1>
-
-            <p className="mt-6 text-lg sm:text-xl text-white/70 max-w-xl leading-relaxed">
-              Enrollment statistics, school information, and public services for
-              the Schools Division of Bayugan City.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/schools"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white text-slate-900 font-semibold text-sm hover:bg-white/90 transition-all duration-200 shadow-lg shadow-black/10 hover:shadow-black/20 hover:translate-y-[-1px]"
+            {/* Register strip — the masthead's counterweight */}
+            <div className="lg:col-span-5 lg:pl-6">
+              <div
+                className="border-t-2 border-[var(--ink)] bg-[var(--paper-raised)] shadow-sm shadow-[var(--ink)]/5 animate-fade-up"
+                style={{ animationDelay: "0.3s" }}
               >
-                Explore Schools
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/requests"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 text-white font-semibold text-sm border border-white/20 hover:bg-white/15 hover:border-white/30 transition-all duration-200 backdrop-blur-sm"
-              >
-                <UserCircle className="h-4 w-4" />
-                Requests Record
-              </Link>
+                <div className="flex items-baseline justify-between border-b border-[var(--rule)] px-5 py-3.5">
+                  <span className="label-data text-[var(--ink-3)]">
+                    Division at a glance
+                  </span>
+                  <span className="font-data text-[11px] text-[var(--ink-3)]">
+                    SY {schoolYear}
+                  </span>
+                </div>
+
+                <div className="px-5 py-7">
+                  <p className="label-data text-[var(--ink-3)]">
+                    Learners enrolled
+                  </p>
+                  {loading ? (
+                    <Skeleton className="mt-3 h-14 w-48 rounded-sm bg-[var(--rule-faint)]" />
+                  ) : (
+                    <p className="font-data mt-2 text-5xl font-normal leading-none tracking-tight text-[var(--ink)] sm:text-6xl">
+                      <AnimatedNumber value={stats?.total ?? 0} />
+                    </p>
+                  )}
+                </div>
+
+                <dl className="grid grid-cols-2 border-t border-[var(--rule)]">
+                  {[
+                    { label: "Male", value: stats?.male ?? 0 },
+                    { label: "Female", value: stats?.female ?? 0 },
+                  ].map((row, i) => (
+                    <div
+                      key={row.label}
+                      className={`px-5 py-4 ${
+                        i === 0 ? "border-r border-[var(--rule)]" : ""
+                      }`}
+                    >
+                      <dt className="label-data text-[var(--ink-3)]">
+                        {row.label}
+                      </dt>
+                      <dd className="font-data mt-1.5 text-xl text-[var(--ink)]">
+                        {loading ? (
+                          <Skeleton className="h-6 w-16 rounded-sm bg-[var(--rule-faint)]" />
+                        ) : (
+                          row.value.toLocaleString()
+                        )}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+
+              <p className="font-data mt-3 text-[10px] leading-relaxed text-[var(--ink-3)]">
+                Figures cover approved enrollments across all schools in the
+                division for the school year shown.
+              </p>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Stats Section — white background (overlap hero fade to remove gap) */}
-      <div className="bg-slate-50 -mt-24 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          {/* Section header with school year selector */}
-          <div
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 animate-fade-up"
-            style={{ animationDelay: "0.15s" }}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white border border-gray-200 shadow-sm">
-                <TrendingUp className="h-5 w-5 text-gray-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  Enrollment Overview
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Division-wide statistics
-                </p>
-              </div>
-            </div>
-            <select
-              value={schoolYear}
-              onChange={(e) => setSchoolYear(e.target.value)}
-              className="text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 cursor-pointer transition-all shadow-sm"
-            >
-              {getSchoolYearOptions().map((sy) => (
-                <option key={sy} value={sy}>
-                  SY {sy}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Stat Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {loading ? (
-              <>
-                <StatCardSkeleton />
-                <StatCardSkeleton />
-                <StatCardSkeleton />
-                <StatCardSkeleton />
-              </>
-            ) : (
-              statCards.map((card, i) => {
-                const Icon = card.icon;
-                return (
-                  <div
-                    key={card.key}
-                    className="group rounded-2xl bg-white border border-gray-100 shadow-sm p-6 transition-all duration-300 hover:shadow-md hover:translate-y-[-2px] animate-scale-in"
-                    style={{ animationDelay: `${0.2 + i * 0.1}s` }}
+      {/* ================================================================
+          ENROLLMENT LEDGER
+          ================================================================ */}
+      <section className="border-b border-[var(--rule)]">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <SectionHead
+            index="I"
+            eyebrow="Enrollment"
+            title="Learners by grade band"
+            aside={
+              <label className="flex items-center gap-3">
+                <span className="label-data text-[var(--ink-3)]">
+                  School year
+                </span>
+                <span className="relative">
+                  <select
+                    value={schoolYear}
+                    onChange={(e) => setSchoolYear(e.target.value)}
+                    className="font-data cursor-pointer appearance-none rounded-sm border border-[var(--rule)] bg-[var(--paper-raised)] py-2 pl-3 pr-9 text-[13px] text-[var(--ink)] outline-none transition-colors hover:border-[var(--ink-3)] focus:border-[var(--ink)]"
                   >
-                    <div
-                      className={`inline-flex p-2.5 rounded-xl ${card.iconBg} mb-4`}
-                    >
-                      <Icon className={`h-5 w-5 ${card.iconColor}`} />
-                    </div>
+                    {getSchoolYearOptions().map((sy) => (
+                      <option key={sy} value={sy}>
+                        {sy}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-3)]"
+                    strokeWidth={1.75}
+                  />
+                </span>
+              </label>
+            }
+          />
 
-                    <h3 className="text-sm font-semibold text-gray-900 mb-0.5">
-                      {card.label}
-                    </h3>
-                    <p className="text-xs text-gray-400 mb-4">{card.sub}</p>
-
-                    {card.data ? (
-                      <div>
-                        <div className="text-3xl font-bold text-gray-900 mb-3 tabular-nums">
-                          <AnimatedNumber value={card.data.total} />
-                        </div>
-                        <div className="flex gap-4 text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-blue-500" />
-                            <span className="text-gray-500">Male</span>
-                            <span className="font-semibold text-gray-700">
-                              {card.data.male.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-pink-500" />
-                            <span className="text-gray-500">Female</span>
-                            <span className="font-semibold text-gray-700">
-                              {card.data.female.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-gray-400 text-sm">No data</p>
-                    )}
+          <div className="border-t border-[var(--rule)]">
+            {ledger.map((row, i) => (
+              <div
+                key={row.key}
+                className="group grid grid-cols-12 items-center gap-4 border-b border-[var(--rule)] py-6 transition-colors hover:bg-[var(--paper-raised)]/60 animate-fade-up"
+                style={{ animationDelay: `${0.1 + i * 0.08}s` }}
+              >
+                {/* Index + name */}
+                <div className="col-span-12 flex items-baseline gap-4 sm:col-span-4">
+                  <span className="font-data text-[11px] text-[var(--ink-3)]">
+                    {row.no}
+                  </span>
+                  <div>
+                    <p className="font-display text-lg leading-tight text-[var(--ink)]">
+                      {row.label}
+                    </p>
+                    <p className="label-data mt-1 text-[10px] text-[var(--ink-3)]">
+                      {row.range}
+                    </p>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
+                </div>
 
-      {/* Chart Section — white background */}
-      <div className="bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-          <div
-            className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 sm:p-8 animate-fade-up"
-            style={{ animationDelay: "0.4s" }}
-          >
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">
-                  Enrollment by Grade Level
-                </h2>
-                <p className="text-sm text-gray-400 mt-1">SY {schoolYear}</p>
-              </div>
-              {/* Legend */}
-              <div className="hidden sm:flex items-center gap-4 text-xs">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded bg-gradient-to-r from-amber-400 to-orange-400" />
-                  <span className="text-gray-500">Elementary</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded bg-gradient-to-r from-emerald-400 to-teal-400" />
-                  <span className="text-gray-500">Junior High</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded bg-gradient-to-r from-violet-400 to-purple-400" />
-                  <span className="text-gray-500">Senior High</span>
-                </div>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="grid grid-cols-12 gap-2 sm:gap-3 items-end h-56">
-                {[70, 55, 80, 45, 90, 65, 75, 50, 85, 60, 70, 55].map(
-                  (pct, i) => (
+                {/* Proportional rule */}
+                <div className="col-span-12 sm:col-span-4">
+                  {loading ? (
+                    <Skeleton className="h-1.5 w-full rounded-none bg-[var(--rule-faint)]" />
+                  ) : (
                     <div
-                      key={i}
-                      className="flex flex-col items-center gap-2 h-full justify-end"
+                      className="h-1.5 w-full bg-[var(--rule-faint)]"
+                      role="img"
+                      aria-label={`${row.label}: ${Math.round(
+                        share(row.data?.total ?? 0),
+                      )} percent of enrollment`}
                     >
-                      <Skeleton
-                        className="w-full rounded-lg min-h-[16px] bg-gray-100"
-                        style={{ height: `${pct}%` }}
+                      <div
+                        className="h-full origin-left animate-bar-grow"
+                        style={{
+                          width: `${share(row.data?.total ?? 0)}%`,
+                          backgroundColor: row.color,
+                          animationDelay: `${0.2 + i * 0.1}s`,
+                          transformOrigin: "left",
+                        }}
                       />
-                      <Skeleton className="h-3 w-6 bg-gray-100" />
                     </div>
-                  ),
+                  )}
+                </div>
+
+                {/* Split */}
+                <div className="col-span-7 sm:col-span-2">
+                  {loading ? (
+                    <Skeleton className="h-4 w-24 rounded-sm bg-[var(--rule-faint)]" />
+                  ) : (
+                    <p className="font-data text-[11px] text-[var(--ink-3)]">
+                      {(row.data?.male ?? 0).toLocaleString()} M
+                      <span className="px-1.5 text-[var(--rule)]">/</span>
+                      {(row.data?.female ?? 0).toLocaleString()} F
+                    </p>
+                  )}
+                </div>
+
+                {/* Total */}
+                <div className="col-span-5 text-right sm:col-span-2">
+                  {loading ? (
+                    <Skeleton className="ml-auto h-7 w-20 rounded-sm bg-[var(--rule-faint)]" />
+                  ) : (
+                    <p className="font-data text-2xl leading-none text-[var(--ink)]">
+                      {(row.data?.total ?? 0).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Ledger foot */}
+            <div className="grid grid-cols-12 items-center gap-4 border-b-2 border-[var(--ink)] py-5">
+              <div className="col-span-7 sm:col-span-8">
+                <p className="label-data text-[var(--ink)]">Total enrollment</p>
+              </div>
+              <div className="col-span-5 text-right sm:col-span-4">
+                {loading ? (
+                  <Skeleton className="ml-auto h-7 w-24 rounded-sm bg-[var(--rule-faint)]" />
+                ) : (
+                  <p className="font-data text-2xl leading-none text-[var(--ink)]">
+                    {(stats?.total ?? 0).toLocaleString()}
+                  </p>
                 )}
               </div>
-            ) : stats && stats.byGradeLevel.some((g) => g.count > 0) ? (
-              <div className="grid gap-2 sm:gap-3 items-end h-56 sm:h-64 [grid-template-columns:repeat(13,minmax(0,1fr))]">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================
+          DISTRIBUTION
+          ================================================================ */}
+      <section className="border-b border-[var(--rule)]">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <SectionHead
+            index="II"
+            eyebrow={`School year ${schoolYear}`}
+            title="Distribution by grade level"
+            aside={
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                {[
+                  { label: "Elementary", color: "var(--band-elem)" },
+                  { label: "Junior High", color: "var(--band-jhs)" },
+                  { label: "Senior High", color: "var(--band-shs)" },
+                ].map((l) => (
+                  <span key={l.label} className="flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5"
+                      style={{ backgroundColor: l.color }}
+                    />
+                    <span className="label-data text-[var(--ink-3)]">
+                      {l.label}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            }
+          />
+
+          {loading ? (
+            <div className="flex h-64 items-end gap-2 sm:gap-3">
+              {[62, 48, 74, 40, 86, 58, 70, 45, 80, 55, 66, 50, 38].map(
+                (pct, i) => (
+                  <div key={i} className="flex-1">
+                    <Skeleton
+                      className="w-full rounded-none bg-[var(--rule-faint)]"
+                      style={{ height: `${pct}%` }}
+                    />
+                  </div>
+                ),
+              )}
+            </div>
+          ) : stats && stats.byGradeLevel.some((g) => g.count > 0) ? (
+            <>
+              <div className="flex h-64 items-end gap-1.5 sm:gap-3">
                 {stats.byGradeLevel.map((g, i) => {
                   const max = Math.max(
                     ...stats.byGradeLevel.map((x) => x.count),
@@ -470,109 +569,121 @@ export default function LandingHomePage() {
                   return (
                     <div
                       key={g.grade}
-                      className="flex flex-col items-center gap-1.5 h-full justify-end group"
+                      className="group/bar flex h-full flex-1 flex-col justify-end"
+                      title={`${getGradeLevelLabel(g.grade)}: ${g.count.toLocaleString()} learners`}
                     >
-                      {/* Count label */}
-                      <span className="text-xs font-bold text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {g.count}
+                      <span className="font-data mb-2 text-center text-[10px] text-[var(--ink-2)] opacity-0 transition-opacity duration-200 group-hover/bar:opacity-100">
+                        {g.count.toLocaleString()}
                       </span>
-                      {/* Bar */}
                       <div
-                        className={`w-full rounded-lg bg-gradient-to-t ${gradeBarColor(g.grade)} transition-all duration-300 group-hover:brightness-110 group-hover:shadow-md min-h-[4px] animate-bar-grow`}
+                        className="w-full animate-bar-grow transition-opacity duration-200 group-hover/bar:opacity-80"
                         style={{
-                          height: `${Math.max(pct, 3)}%`,
-                          animationDelay: `${0.5 + i * 0.05}s`,
+                          height: `${Math.max(pct, 1.5)}%`,
+                          backgroundColor: gradeBandColor(g.grade),
+                          animationDelay: `${0.15 + i * 0.04}s`,
                         }}
-                        title={`${getGradeLevelLabel(g.grade)}: ${g.count} students`}
                       />
-                      {/* Grade label */}
-                      <span className="text-[10px] sm:text-xs font-semibold text-gray-400 group-hover:text-gray-700 transition-colors">
-                        {g.grade === 0 ? "K" : g.grade}
-                      </span>
                     </div>
                   );
                 })}
               </div>
-            ) : (
-              <div className="text-center py-16 text-gray-400 text-sm rounded-xl bg-gray-50">
-                No enrollment data for this school year
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
-      {/* Quick Links Section — white background */}
-      <div className="bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-          <h2
-            className="text-xl font-bold text-gray-900 mb-6 animate-fade-up"
-            style={{ animationDelay: "0.5s" }}
-          >
-            Quick Access
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickLinks.map((link, i) => {
-              const Icon = link.icon;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="group rounded-2xl bg-white border border-gray-100 shadow-sm p-6 transition-all duration-300 hover:shadow-md hover:translate-y-[-2px] animate-fade-up"
-                  style={{ animationDelay: `${0.55 + i * 0.08}s` }}
-                >
-                  <div
-                    className={`inline-flex p-2.5 rounded-xl ${link.iconBg} mb-4`}
+              {/* Baseline + axis */}
+              <div className="h-px w-full bg-[var(--ink)]/30" />
+              <div className="flex gap-1.5 pt-2.5 sm:gap-3">
+                {stats.byGradeLevel.map((g) => (
+                  <span
+                    key={g.grade}
+                    className="font-data flex-1 text-center text-[10px] text-[var(--ink-3)]"
                   >
-                    <Icon className={`h-5 w-5 ${link.iconColor}`} />
-                  </div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                    {link.title}
-                    <ArrowRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-gray-500 group-hover:translate-x-1 transition-all duration-200" />
-                  </h3>
-                  <p className="text-xs text-gray-500 leading-relaxed">
-                    {link.desc}
-                  </p>
-                </Link>
-              );
-            })}
+                    {g.grade === 0 ? "K" : g.grade}
+                  </span>
+                ))}
+              </div>
+              <p className="label-data mt-4 text-center text-[10px] text-[var(--ink-3)]">
+                Grade level
+              </p>
+            </>
+          ) : (
+            <div className="border border-dashed border-[var(--rule)] py-20 text-center">
+              <p className="font-display text-lg text-[var(--ink)]">
+                No enrollment on record
+              </p>
+              <p className="font-data mt-2 text-[11px] text-[var(--ink-3)]">
+                Nothing has been approved for SY {schoolYear} yet.
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ================================================================
+          SERVICES
+          ================================================================ */}
+      <section>
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <SectionHead index="III" eyebrow="Public access" title="Services" />
+
+          <div className="border-t border-[var(--rule)]">
+            {services.map((s, i) => (
+              <Link
+                key={s.href}
+                href={s.href}
+                className="group grid grid-cols-12 items-baseline gap-x-4 gap-y-2 border-b border-[var(--rule)] py-7 transition-colors hover:bg-[var(--paper-raised)]/60 animate-fade-up"
+                style={{ animationDelay: `${0.08 + i * 0.07}s` }}
+              >
+                <span className="font-data col-span-2 text-[11px] text-[var(--ink-3)] sm:col-span-1">
+                  {s.no}
+                </span>
+                <h3 className="font-display col-span-10 text-xl leading-tight text-[var(--ink)] transition-colors group-hover:text-[var(--brass)] sm:col-span-4">
+                  {s.title}
+                </h3>
+                <p className="col-span-12 col-start-3 text-[14px] leading-relaxed text-[var(--ink-2)] sm:col-span-6 sm:col-start-6">
+                  {s.desc}
+                </p>
+                <span className="col-span-12 col-start-3 flex sm:col-span-1 sm:justify-end">
+                  <ArrowRight
+                    className="h-4 w-4 text-[var(--ink-3)] transition-all duration-300 group-hover:translate-x-1 group-hover:text-[var(--brass)]"
+                    strokeWidth={1.75}
+                  />
+                </span>
+              </Link>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Footer — light gray */}
-      <footer className="bg-white border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-gray-400">
-              Department of Education &mdash; Schools Division of Bayugan City
-            </p>
-            <div className="flex items-center gap-6 text-xs text-gray-400">
-              <Link
-                href="/schools"
-                className="hover:text-gray-600 transition-colors"
-              >
-                Schools
-              </Link>
-              <Link
-                href="/learners"
-                className="hover:text-gray-600 transition-colors"
-              >
-                Learners
-              </Link>
-              <Link
-                href="/requests"
-                className="hover:text-gray-600 transition-colors"
-              >
-                Requests
-              </Link>
-              <Link
-                href="/login"
-                className="hover:text-gray-600 transition-colors"
-              >
-                Sign In
-              </Link>
+      {/* ================================================================
+          COLOPHON
+          ================================================================ */}
+      <footer className="border-t-2 border-[var(--ink)]">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="font-display text-base text-[var(--ink)]">
+                {APP_NAME}
+              </p>
+              <p className="label-data mt-1.5 text-[var(--ink-3)]">
+                {ORG_FOOTER}
+              </p>
             </div>
+            <nav className="flex flex-wrap gap-x-8 gap-y-2">
+              {[
+                { href: "/schools", label: "Schools" },
+                { href: "/learners", label: "Learners" },
+                { href: "/requests", label: "Requests" },
+                { href: "/student-portal", label: "Student Portal" },
+                { href: "/login", label: "Staff Sign In" },
+              ].map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className="text-[13px] text-[var(--ink-3)] transition-colors hover:text-[var(--ink)]"
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </nav>
           </div>
         </div>
       </footer>

@@ -3,6 +3,7 @@
 import { LrnBoxInput } from "@/components/LrnBoxInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ORG_NAME } from "@/lib/constants/branding";
 import { useStudentSession } from "@/lib/student-portal/context";
 import { verifyStudent } from "@/lib/student-portal/actions";
 import { GraduationCap, Loader2, UserCircle } from "lucide-react";
@@ -51,63 +52,55 @@ export default function StudentPortalLoginPage() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Hero Section — matches landing page */}
-      <div className="relative pt-28 sm:pt-32 pb-20 sm:pb-28">
-        <div className="absolute inset-0" aria-hidden>
-          <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105"
-            style={{ backgroundImage: "url(/home.jpg)" }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/70 to-slate-900/90" />
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-50 to-transparent z-[1]" />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="paper-ground paper-grain font-ui relative min-h-screen text-[var(--ink-2)]">
+      {/* Masthead */}
+      <header className="border-b border-[var(--rule)]">
+        <div className="mx-auto max-w-7xl px-4 pb-14 pt-28 sm:px-6 sm:pb-20 sm:pt-36 lg:px-8">
           <div className="max-w-2xl animate-fade-up">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm mb-6">
-              <UserCircle className="h-3.5 w-3.5 text-white/80" />
-              <span className="text-xs font-medium text-white/80">
-                Schools Division of Bayugan City
-              </span>
-            </div>
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white leading-[1.1]">
+            <p className="label-data flex items-center gap-3 text-[var(--brass)]">
+              <UserCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
+              {ORG_NAME}
+            </p>
+            <h1 className="font-display mt-4 text-4xl leading-[1.05] tracking-tight text-[var(--ink)] sm:text-6xl">
               Student Portal
             </h1>
-            <p className="mt-6 text-lg text-white/70 max-w-xl leading-relaxed">
+            <div className="mt-7 h-px w-24 bg-[var(--ink)]/25" />
+            <p className="mt-7 max-w-xl text-[15px] leading-relaxed text-[var(--ink-2)]">
               Sign in with your Learner Reference Number and the code from your
-              section adviser to access your academic records and grades.
+              section adviser to view your academic records and grades.
             </p>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Form Section — white card on slate-50 (matches landing) */}
-      <div className="bg-slate-50 -mt-24 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div
-            className="max-w-2xl mx-auto rounded-2xl bg-white border border-gray-100 shadow-sm p-6 sm:p-10 animate-fade-up"
-            style={{ animationDelay: "0.15s" }}
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 rounded-xl bg-violet-50">
-                <GraduationCap className="h-5 w-5 text-violet-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Sign In</h2>
-                <p className="text-sm text-gray-500">
-                  Enter your LRN and code
-                </p>
-              </div>
+      {/* Form */}
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+        <div
+          className="mx-auto max-w-2xl border-t-2 border-[var(--ink)] bg-[var(--paper-raised)] shadow-sm shadow-[var(--ink)]/5 animate-fade-up"
+          style={{ animationDelay: "0.12s" }}
+        >
+          <div className="flex items-center gap-3 border-b border-[var(--rule)] px-6 py-5 sm:px-9">
+            <GraduationCap
+              className="h-5 w-5 text-[var(--brass)]"
+              strokeWidth={1.75}
+            />
+            <div>
+              <p className="label-data text-[var(--ink-3)]">Learner sign in</p>
+              <h2 className="font-display mt-1 text-xl leading-tight text-[var(--ink)]">
+                Enter your LRN and code
+              </h2>
             </div>
+          </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="px-6 py-8 sm:px-9">
+
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label
                   htmlFor="lrn"
-                  className="text-sm font-medium text-gray-700 mb-2 block"
+                  className="label-data mb-2.5 block text-[var(--ink-3)]"
                 >
-                  Learner Reference Number (LRN)
+                  Learner Reference Number
                 </label>
                 <LrnBoxInput
                   id="lrn"
@@ -117,14 +110,14 @@ export default function StudentPortalLoginPage() {
                   onChange={setLrn}
                   disabled={loading}
                 />
-                <p className="text-xs text-gray-500 mt-2">
-                  Enter all 12 digits (format: 4-4-4).
+                <p className="mt-2.5 text-[12px] text-[var(--ink-3)]">
+                  All 12 digits, in 4-4-4 format.
                 </p>
               </div>
               <div>
                 <label
                   htmlFor="code"
-                  className="text-sm font-medium text-gray-700 mb-2 block"
+                  className="label-data mb-2.5 block text-[var(--ink-3)]"
                 >
                   Code
                 </label>
@@ -133,34 +126,37 @@ export default function StudentPortalLoginPage() {
                   type="text"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="Enter the code from your section adviser"
-                  className="bg-white border-gray-200 text-gray-900 h-11"
+                  placeholder="Code from your section adviser"
+                  className="font-data h-11 rounded-sm border-[var(--rule)] bg-[var(--paper)] text-[var(--ink)] placeholder:text-[var(--ink-3)]/70 focus-visible:border-[var(--ink)] focus-visible:ring-0"
                   disabled={loading}
                   autoComplete="off"
                   autoCapitalize="characters"
                 />
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="mt-2.5 text-[12px] text-[var(--ink-3)]">
                   Your section adviser provides this code.
                 </p>
               </div>
               <Button
                 type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white h-11 font-semibold rounded-xl"
+                className="h-11 w-full rounded-sm bg-[var(--ink)] text-[14px] font-medium tracking-tight text-[var(--paper)] hover:bg-[var(--ink-2)]"
                 disabled={loading}
               >
                 {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
                 ) : (
-                  "Sign In"
+                  "Sign in"
                 )}
               </Button>
             </form>
+          </div>
 
-            <p className="mt-6 text-center text-sm text-gray-500">
-              <Link href="/" className="text-gray-700 hover:text-gray-900 font-medium">
-                ← Back to Home
-              </Link>
-            </p>
+          <div className="border-t border-[var(--rule)] bg-[var(--paper)]/60 px-6 py-3.5 sm:px-9">
+            <Link
+              href="/"
+              className="text-[12px] text-[var(--ink-3)] transition-colors hover:text-[var(--ink)]"
+            >
+              ← Back to home
+            </Link>
           </div>
         </div>
       </div>

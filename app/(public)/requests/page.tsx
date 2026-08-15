@@ -1,5 +1,6 @@
 "use client";
 
+import { ORG_NAME } from "@/lib/constants/branding";
 import { FileText, ScrollText, Search } from "lucide-react";
 import { useState } from "react";
 import { SubmitRequestForm } from "./components/SubmitRequestForm";
@@ -10,49 +11,45 @@ type Tab = "submit" | "track";
 export default function RequestsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("submit");
 
+  // Tabs read as register tabs: a rule under the active one, no filled pill.
   const tabClass = (active: boolean) =>
-    `text-sm font-medium flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+    `relative inline-flex items-center gap-2 px-1 pb-3 text-[13px] font-medium tracking-tight transition-colors ${
       active
-        ? "bg-white/15 text-white"
-        : "text-white/80 hover:text-white hover:bg-white/10"
+        ? "text-[var(--ink)]"
+        : "text-[var(--ink-3)] hover:text-[var(--ink)]"
+    } after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:origin-left after:transition-transform after:duration-300 ${
+      active
+        ? "after:bg-[var(--brass)] after:scale-x-100"
+        : "after:bg-[var(--ink-3)]/40 after:scale-x-0 hover:after:scale-x-100"
     }`;
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Hero Section — exact match with student portal layout */}
-      <div className="relative pt-28 sm:pt-32 pb-28 sm:pb-36">
-        <div className="absolute inset-0" aria-hidden>
-          <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105"
-            style={{ backgroundImage: "url(/home.jpg)" }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/70 to-slate-900/90" />
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-50 to-transparent z-[1]" />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 animate-fade-up">
+    <div className="paper-ground paper-grain font-ui relative min-h-screen text-[var(--ink-2)]">
+      {/* Masthead */}
+      <header className="border-b border-[var(--rule)]">
+        <div className="mx-auto max-w-7xl px-4 pb-0 pt-28 sm:px-6 sm:pt-36 lg:px-8">
+          <div className="flex flex-col gap-8 animate-fade-up sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm mb-4">
-                <ScrollText className="h-3.5 w-3.5 text-white/80" />
-                <span className="text-xs font-medium text-white/80">
-                  Schools Division of Bayugan City
-                </span>
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
+              <p className="label-data flex items-center gap-3 text-[var(--brass)]">
+                <ScrollText className="h-3.5 w-3.5" strokeWidth={1.75} />
+                {ORG_NAME}
+              </p>
+              <h1 className="font-display mt-4 text-4xl leading-[1.05] tracking-tight text-[var(--ink)] sm:text-5xl">
                 Document Requests
               </h1>
-              <p className="mt-2 text-white/70">
-                Request official school documents or track an existing request
+              <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-[var(--ink-2)]">
+                Request an official school record, or check where an existing
+                request has got to.
               </p>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+
+            <div className="flex items-center gap-7">
               <button
                 type="button"
                 onClick={() => setActiveTab("submit")}
                 className={tabClass(activeTab === "submit")}
               >
-                <FileText className="h-4 w-4" />
+                <FileText className="h-4 w-4" strokeWidth={1.75} />
                 Submit Request
               </button>
               <button
@@ -60,50 +57,38 @@ export default function RequestsPage() {
                 onClick={() => setActiveTab("track")}
                 className={tabClass(activeTab === "track")}
               >
-                <Search className="h-4 w-4" />
+                <Search className="h-4 w-4" strokeWidth={1.75} />
                 Track Request
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Content Section — exact match with student portal layout */}
-      <div className="bg-slate-50 -mt-24 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="space-y-6">
-            {/* Page header — matches grades page pattern */}
-            <div
-              className="flex items-center gap-3 animate-fade-up"
-              style={{ animationDelay: "0.1s" }}
-            >
-              <div className="p-2 rounded-lg bg-white border border-gray-200 shadow-sm">
-                {activeTab === "submit" ? (
-                  <FileText className="h-5 w-5 text-gray-600" />
-                ) : (
-                  <Search className="h-5 w-5 text-gray-600" />
-                )}
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  {activeTab === "submit" ? "Submit a Request" : "Track a Request"}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  {activeTab === "submit"
-                    ? "Fill in the form below to request your school documents"
-                    : "Enter your tracking number to check your request status"}
-                </p>
-              </div>
-            </div>
+      {/* Content */}
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div
+          className="mb-8 border-b border-[var(--rule)] pb-5 animate-fade-up"
+          style={{ animationDelay: "0.08s" }}
+        >
+          <p className="label-data text-[var(--ink-3)]">
+            {activeTab === "submit" ? "New request" : "Existing request"}
+          </p>
+          <h2 className="font-display mt-2 text-2xl leading-tight text-[var(--ink)]">
+            {activeTab === "submit" ? "Submit a request" : "Track a request"}
+          </h2>
+          <p className="mt-2 text-[14px] text-[var(--ink-3)]">
+            {activeTab === "submit"
+              ? "Fill in the form below to request your school documents."
+              : "Enter your tracking number to check the status of your request."}
+          </p>
+        </div>
 
-            {/* Content card — matches grades page white card */}
-            <div
-              className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 sm:p-8 animate-fade-up"
-              style={{ animationDelay: "0.2s" }}
-            >
-              {activeTab === "submit" ? <SubmitRequestForm /> : <TrackingLookup />}
-            </div>
-          </div>
+        <div
+          className="border-t-2 border-[var(--ink)] bg-[var(--paper-raised)] p-6 shadow-sm shadow-[var(--ink)]/5 animate-fade-up sm:p-9"
+          style={{ animationDelay: "0.15s" }}
+        >
+          {activeTab === "submit" ? <SubmitRequestForm /> : <TrackingLookup />}
         </div>
       </div>
     </div>

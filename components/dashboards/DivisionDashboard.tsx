@@ -279,7 +279,7 @@ export function DivisionDashboard() {
       <div className="flex flex-col gap-1.5 pb-2">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
           <FileBarChart className="h-3.5 w-3.5" />
-          Schools Division of Bayugan City
+          Division Office
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
           {user?.name ? `Welcome, ${user.name}` : "Division Dashboard"}
