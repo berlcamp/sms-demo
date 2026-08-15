@@ -158,13 +158,16 @@ export const List = () => {
       counts[section.id] = { scheduled, total };
     }
     setScheduleCounts(counts);
-  }, [list, user?.school_id]);
+    // Depends on `user`, not `user?.school_id`: React Compiler infers the whole
+    // object and refuses to preserve a manual memo whose declared dependency is
+    // narrower than the inferred one.
+  }, [list, user]);
 
   useEffect(() => {
     if (list.length > 0) {
       fetchScheduleCounts();
     }
-  }, [list, user?.school_id, fetchScheduleCounts]);
+  }, [list, fetchScheduleCounts]);
 
   const handleDeleteConfirmation = (item: ItemType) => {
     setSelectedItem(item);

@@ -19,7 +19,7 @@ import {
   getSchoolYearOptions,
 } from "@/lib/utils/schoolYear";
 import { Filter as FilterIcon, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface StudentFilterProps {
   filter: {
@@ -55,12 +55,10 @@ export function StudentFilter({
     }
   }, []);
 
-  useEffect(() => {
-    fetchSections();
-    fetchSubjects();
-  }, [teacherId, filter.school_year]);
-
-  const fetchSections = async () => {
+  // Declared before the effect that calls them: reading a `const` above its
+  // declaration means the effect closes over a binding that never updates when
+  // the value changes.
+  const fetchSections = useCallback(async () => {
     // Get sections where teacher is adviser
     const { data: adviserSections } = await supabase
       .from("sms_sections")
@@ -91,9 +89,9 @@ export function StudentFilter({
     });
 
     setSections(Array.from(sectionMap.values()));
-  };
+  }, [teacherId, filter.school_year]);
 
-  const fetchSubjects = async () => {
+  const fetchSubjects = useCallback(async () => {
     const { data: schedules } = await supabase
       .from("sms_subject_schedules")
       .select(
@@ -114,7 +112,12 @@ export function StudentFilter({
     });
 
     setSubjects(Array.from(subjectMap.values()));
-  };
+  }, [teacherId, filter.school_year]);
+
+  useEffect(() => {
+    fetchSections();
+    fetchSubjects();
+  }, [fetchSections, fetchSubjects]);
 
   const hasActiveFilters =
     filter.section_id || filter.subject_id || filter.school_year;
