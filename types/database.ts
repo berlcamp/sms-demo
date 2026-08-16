@@ -405,6 +405,7 @@ export interface Section {
   school_year: string; // e.g., "2024-2025"
   section_type?: SectionType | null;
   section_adviser_id?: string | null; // Foreign key → sms_users.id
+  room_id?: string | null; // Foreign key → sms_rooms.id — the section's classroom (migration 138)
   max_students?: number | null;
   is_active: boolean;
   created_at: string;
@@ -681,6 +682,7 @@ export interface Room {
   name: string; // Unique room name/code (e.g., "Room 101", "Lab A")
   building?: string | null;
   capacity?: number | null;
+  dimension?: string | null; // Room size in metres, e.g. "40 x 30" (migration 138)
   room_type?: string | null; // "classroom", "laboratory", "library", "gym", etc.
   condition?: RoomCondition | null;
   description?: string | null;

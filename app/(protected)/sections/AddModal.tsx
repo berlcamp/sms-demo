@@ -37,6 +37,7 @@ import {
   isAlsSectionType,
   SECTION_TYPE_OPTIONS,
 } from "@/lib/constants";
+import { formatRoomDimension } from "@/lib/utils/roomDimension";
 import {
   getCurrentSchoolYear,
   getSchoolYearOptions,
@@ -67,6 +68,10 @@ const FormSchema = z.object({
     .union([z.string(), z.number()])
     .optional()
     .transform((v) => (v == null || v === "" ? undefined : String(v))),
+  room_id: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((v) => (v == null || v === "" ? undefined : String(v))),
   max_students: z.number().optional(),
   is_active: z.boolean().default(true),
 });
@@ -78,6 +83,9 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
   const [teachers, setTeachers] = useState<Array<{ id: string; name: string }>>(
     [],
   );
+  const [rooms, setRooms] = useState<
+    Array<{ id: string; name: string; dimension: string | null }>
+  >([]);
   const [hasExistingData, setHasExistingData] = useState(false);
 
   const dispatch = useAppDispatch();
@@ -91,6 +99,7 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
       school_year: getCurrentSchoolYear(),
       section_type: undefined,
       section_adviser_id: undefined,
+      room_id: undefined,
       max_students: undefined,
       is_active: true,
     },
@@ -149,6 +158,31 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
     }
   }, [isOpen, user?.school_id]);
 
+  // Classrooms available to assign to this section (migration 138). The room's
+  // dimension and capacity are what the Classroom Enrollment and Size report
+  // prints, so the picker shows the dimension beside the name.
+  useEffect(() => {
+    const fetchRooms = async () => {
+      let query = supabase
+        .from("sms_rooms")
+        .select("id, name, dimension")
+        .eq("is_active", true)
+        .order("name");
+      if (user?.school_id != null) {
+        query = query.eq("school_id", user.school_id);
+      }
+      const { data, error } = await query;
+
+      if (!error && data) {
+        setRooms(data as Array<{ id: string; name: string; dimension: string | null }>);
+      }
+    };
+
+    if (isOpen) {
+      fetchRooms();
+    }
+  }, [isOpen, user?.school_id]);
+
   const onSubmit = async (data: FormType) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -160,6 +194,7 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
         school_year: data.school_year.trim(),
         section_type: data.section_type || null,
         section_adviser_id: data.section_adviser_id || null,
+        room_id: data.room_id || null,
         max_students: data.max_students || null,
         is_active: data.is_active,
         ...(user?.school_id != null && { school_id: user.school_id }),
@@ -261,6 +296,7 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
         school_year: editData?.school_year || getCurrentSchoolYear(),
         section_type: editData?.section_type || undefined,
         section_adviser_id: editData?.section_adviser_id ?? undefined,
+        room_id: editData?.room_id ?? undefined,
         max_students: editData?.max_students || undefined,
         is_active: editData?.is_active ?? true,
       });
@@ -443,6 +479,49 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="room_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium">
+                      Classroom
+                    </FormLabel>
+                    <Select
+                      onValueChange={(value) =>
+                        field.onChange(value === "none" ? undefined : value)
+                      }
+                      value={field.value ? String(field.value) : "none"}
+                      disabled={isSubmitting}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Select classroom (optional)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          No classroom assigned
+                        </SelectItem>
+                        {rooms.map((room) => (
+                          <SelectItem key={room.id} value={String(room.id)}>
+                            {room.name}
+                            {formatRoomDimension(room.dimension)
+                              ? ` — ${formatRoomDimension(room.dimension)}`
+                              : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription className="text-xs">
+                      Room this section occupies. Its dimension and capacity
+                      appear in the Classroom Enrollment and Size report.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

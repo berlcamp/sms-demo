@@ -8,6 +8,7 @@ import { escapeIlikePattern } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hook";
 import { addList } from "@/lib/redux/listSlice";
 import { supabase } from "@/lib/supabase/client";
+import { getCurrentSchoolYear } from "@/lib/utils/schoolYear";
 import { Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AddModal } from "./AddModal";
@@ -19,10 +20,12 @@ export default function Page() {
   const [page, setPage] = useState(1);
   const [modalAddOpen, setModalAddOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Sections open on the current school year — a school works in one year at a
+  // time, and every past year's sections are still reachable from the filter.
   const [filter, setFilter] = useState({
     keyword: "",
     grade_level: undefined as number | undefined,
-    school_year: undefined as string | undefined,
+    school_year: getCurrentSchoolYear() as string | undefined,
   });
 
   const dispatch = useAppDispatch();
@@ -30,22 +33,6 @@ export default function Page() {
   const user = useAppSelector((state) => state.user.user);
 
   const filterKeywordRef = useRef(filter.keyword);
-
-  // Get current school year (e.g., "2024-2025")
-  const getCurrentSchoolYear = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth(); // 0-11
-    // If month is June or later, current school year starts this year
-    // Otherwise, it started last year
-    if (month >= 5) {
-      // June (5) to December
-      return `${year}-${year + 1}`;
-    } else {
-      // January to May
-      return `${year - 1}-${year}`;
-    }
-  };
 
   const handleFilterChange = useCallback(
     (newFilter: {
@@ -154,9 +141,11 @@ export default function Page() {
             </div>
             <p className="app__empty_state_title">No sections found</p>
             <p className="app__empty_state_description">
-              {filter.keyword || filter.grade_level || filter.school_year
+              {filter.keyword ||
+              filter.grade_level ||
+              filter.school_year !== getCurrentSchoolYear()
                 ? "Try adjusting your search criteria"
-                : "Get started by adding a new section"}
+                : `Get started by adding a section for SY ${getCurrentSchoolYear()}`}
             </p>
           </div>
         ) : (

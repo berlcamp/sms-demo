@@ -30,6 +30,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hook";
 import { addItem, updateList } from "@/lib/redux/listSlice";
 import { supabase } from "@/lib/supabase/client";
+import {
+  isValidRoomDimension,
+  normalizeRoomDimension,
+  roomDimensionArea,
+} from "@/lib/utils/roomDimension";
 import { Room } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
@@ -55,6 +60,12 @@ const FormSchema = z.object({
     .min(1, "Capacity must be at least 1")
     .optional()
     .or(z.literal("")),
+  dimension: z
+    .string()
+    .optional()
+    .refine((v) => !v || !v.trim() || isValidRoomDimension(v), {
+      message: 'Use width x length in meters, e.g. "40x30"',
+    }),
   room_type: z
     .enum([
       "classroom",
@@ -96,6 +107,7 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
       name: "",
       building: "",
       capacity: undefined,
+      dimension: "",
       room_type: undefined,
       condition: undefined,
       description: "",
@@ -117,6 +129,7 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
           name: editData.name || "",
           building: editData.building || "",
           capacity: editData.capacity || undefined,
+          dimension: editData.dimension || "",
           room_type: (editData.room_type as FormType["room_type"]) || undefined,
           condition: (editData.condition as FormType["condition"]) || undefined,
           description: editData.description || "",
@@ -129,6 +142,7 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
         name: "",
         building: "",
         capacity: undefined,
+        dimension: "",
         room_type: undefined,
         condition: undefined,
         description: "",
@@ -147,6 +161,9 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
         name: data.name.trim(),
         building: data.building?.trim() || null,
         capacity: data.capacity && data.capacity > 0 ? data.capacity : null,
+        dimension: data.dimension?.trim()
+          ? normalizeRoomDimension(data.dimension)
+          : null,
         room_type: data.room_type || null,
         condition: data.condition || null,
         description: data.description?.trim() || null,
@@ -349,6 +366,37 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="dimension"
+              render={({ field }) => {
+                const area = roomDimensionArea(field.value);
+                return (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium">
+                      Dimension (meters)
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., 40x30"
+                        className="h-10"
+                        {...field}
+                        value={field.value ?? ""}
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Width x length in meters
+                      {area !== null ? ` — ${area} sq m` : ""}. Printed as the
+                      Classroom Size column of the Classroom Enrollment and Size
+                      report.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
 
             <FormField
               control={form.control}

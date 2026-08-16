@@ -15,6 +15,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getGradeLevelLabel, GRADE_LEVELS } from "@/lib/constants";
+import {
+  getCurrentSchoolYear,
+  getSchoolYearOptions,
+} from "@/lib/utils/schoolYear";
 import { Filter as FilterIcon, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -37,20 +41,13 @@ export const Filter = ({
   const [gradeLevel, setGradeLevel] = useState<string>(
     filter.grade_level?.toString() || "all",
   );
-  const [schoolYear, setSchoolYear] = useState(filter.school_year || "all");
+  // The page opens on the current school year, so that is what the control
+  // shows; "All school years" is still one click away.
+  const currentSchoolYear = getCurrentSchoolYear();
+  const [schoolYear, setSchoolYear] = useState(
+    filter.school_year || currentSchoolYear,
+  );
   const [isOpen, setIsOpen] = useState(false);
-
-  // Generate school year options (current year ± 2 years)
-  const getSchoolYearOptions = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const options: string[] = [];
-    for (let i = -2; i <= 2; i++) {
-      const startYear = year + i;
-      options.push(`${startYear}-${startYear + 1}`);
-    }
-    return options;
-  };
 
   // Debounce search input
   useEffect(() => {
@@ -67,21 +64,24 @@ export const Filter = ({
     return () => clearTimeout(timer);
   }, [keyword, gradeLevel, schoolYear, setFilter]);
 
+  // Clearing returns to the default view (current school year), not to every
+  // school year at once.
   const handleReset = () => {
     setKeyword("");
     setGradeLevel("all");
-    setSchoolYear("all");
+    setSchoolYear(currentSchoolYear);
     setFilter({
       keyword: "",
       grade_level: undefined,
-      school_year: undefined,
+      school_year: currentSchoolYear,
     });
   };
 
+  // The default school year is not itself a filter, so it does not count.
   const filterCount = [
     keyword,
     gradeLevel && gradeLevel !== "all",
-    schoolYear && schoolYear !== "all",
+    schoolYear && schoolYear !== currentSchoolYear,
   ].filter(Boolean).length;
 
   return (
@@ -161,12 +161,13 @@ export const Filter = ({
                 {getSchoolYearOptions().map((year) => (
                   <SelectItem key={year} value={year}>
                     {year}
+                    {year === currentSchoolYear ? " (current)" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          {(keyword || gradeLevel || schoolYear) && (
+          {filterCount > 0 && (
             <div className="flex justify-end">
               <Button
                 size="sm"

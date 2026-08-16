@@ -14,6 +14,7 @@ import {
   Clock,
   FileBarChart,
   Gauge,
+  LayoutGrid,
   MapPin,
 } from "lucide-react";
 import Link from "next/link";
@@ -43,6 +44,13 @@ const REPORTS = [
       "Daily teaching minutes per teacher with DepEd advisorship and ARAL equivalents, and the weekly total.",
     href: "/school-reports/teaching-load",
     icon: Clock,
+  },
+  {
+    title: "Classroom Enrollment and Size",
+    description:
+      "Every section of the current school year with its classroom dimension, capacity and actual number of enrollees.",
+    href: "/school-reports/classroom-enrollment",
+    icon: LayoutGrid,
   },
   {
     title: "Enrollment and Good Moral Certificates",

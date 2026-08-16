@@ -16,6 +16,7 @@ import {
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hook";
 import { deleteItem } from "@/lib/redux/listSlice";
 import { supabase } from "@/lib/supabase/client";
+import { formatRoomDimension } from "@/lib/utils/roomDimension";
 import { RootState, Section } from "@/types";
 import {
   BookOpen,
@@ -50,6 +51,9 @@ export const List = () => {
   const [modalViewSubjectsOpen, setModalViewSubjectsOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ItemType | null>(null);
   const [adviserNames, setAdviserNames] = useState<Record<string, string>>({});
+  const [rooms, setRooms] = useState<
+    Record<string, { name: string; dimension: string | null }>
+  >({});
   const [scheduleCounts, setScheduleCounts] = useState<
     Record<string, { scheduled: number; total: number }>
   >({});
@@ -91,6 +95,43 @@ export const List = () => {
 
     if (list.length > 0) {
       fetchAdvisers();
+    }
+  }, [list, user?.school_id]);
+
+  // Classroom names for the sections that have one assigned (migration 138)
+  useEffect(() => {
+    const fetchRooms = async () => {
+      const roomIds = Array.from(
+        new Set(
+          (list as ItemType[])
+            .map((item) => item.room_id)
+            .filter(Boolean) as string[],
+        ),
+      );
+
+      if (roomIds.length === 0) return;
+
+      let query = supabase
+        .from("sms_rooms")
+        .select("id, name, dimension")
+        .in("id", roomIds);
+      if (user?.school_id != null) {
+        query = query.eq("school_id", user.school_id);
+      }
+      const { data } = await query;
+
+      if (data) {
+        const map: Record<string, { name: string; dimension: string | null }> =
+          {};
+        data.forEach((room) => {
+          map[room.id] = { name: room.name, dimension: room.dimension };
+        });
+        setRooms(map);
+      }
+    };
+
+    if (list.length > 0) {
+      fetchRooms();
     }
   }, [list, user?.school_id]);
 
@@ -262,6 +303,7 @@ export const List = () => {
               <th className="app__table_th">School Year</th>
               <th className="app__table_th">Section Type</th>
               <th className="app__table_th">Adviser</th>
+              <th className="app__table_th">Classroom</th>
               <th className="app__table_th">Scheduled Subjects</th>
               <th className="app__table_th">Status</th>
               <th className="app__table_th_right">Actions</th>
@@ -308,6 +350,19 @@ export const List = () => {
                         ? adviserNames[item.section_adviser_id] || "-"
                         : "-"}
                     </div>
+                  </div>
+                </td>
+                <td className="app__table_td">
+                  <div className="app__table_cell_text">
+                    <div className="app__table_cell_title">
+                      {item.room_id ? rooms[item.room_id]?.name || "-" : "-"}
+                    </div>
+                    {item.room_id &&
+                      formatRoomDimension(rooms[item.room_id]?.dimension) && (
+                        <div className="app__table_cell_subtitle">
+                          {formatRoomDimension(rooms[item.room_id]?.dimension)}
+                        </div>
+                      )}
                   </div>
                 </td>
                 <td className="app__table_td">

@@ -11,6 +11,10 @@ import {
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hook";
 import { deleteItem } from "@/lib/redux/listSlice";
 import { supabase } from "@/lib/supabase/client";
+import {
+  formatRoomDimension,
+  roomDimensionArea,
+} from "@/lib/utils/roomDimension";
 import { Room, RootState } from "@/types";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -87,6 +91,7 @@ export const List = () => {
               <th className="app__table_th">Name</th>
               <th className="app__table_th">Building</th>
               <th className="app__table_th">Type</th>
+              <th className="app__table_th">Dimension</th>
               <th className="app__table_th">Capacity</th>
               <th className="app__table_th">Status</th>
               <th className="app__table_th_right">Actions</th>
@@ -116,6 +121,18 @@ export const List = () => {
                   <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary">
                     {getRoomTypeLabel(item.room_type)}
                   </span>
+                </td>
+                <td className="app__table_td">
+                  <div className="app__table_cell_text">
+                    <div className="app__table_cell_title">
+                      {formatRoomDimension(item.dimension) || "-"}
+                    </div>
+                    {roomDimensionArea(item.dimension) !== null && (
+                      <div className="app__table_cell_subtitle">
+                        {roomDimensionArea(item.dimension)} sq m
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td className="app__table_td">
                   <div className="app__table_cell_text">

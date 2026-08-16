@@ -48,6 +48,7 @@ export { generateAssessmentSummary, type AssessmentSummaryParams } from "./gener
 export { generateSchoolReportCard, type SchoolReportCardParams } from "./generateSchoolReportCard";
 export { generateSubjectsHandledPrint, type SubjectsHandledPrintParams } from "./generateSubjectsHandled";
 export { generateTeachingLoadPrint, type TeachingLoadPrintParams } from "./generateTeachingLoad";
+export { generateClassroomEnrollmentPrint, type ClassroomEnrollmentPrintParams } from "./generateClassroomEnrollment";
 export {
   generateCertificatesPrint,
   CERTIFICATE_TITLES,

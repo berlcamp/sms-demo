@@ -238,6 +238,7 @@ export const DuplicateModal = ({
         school_year: data.school_year.trim(),
         section_type: sourceSection.section_type ?? null,
         section_adviser_id: sourceSection.section_adviser_id ?? null,
+        room_id: sourceSection.room_id ?? null,
         max_students: sourceSection.max_students ?? null,
         is_active: true,
         ...(user?.school_id != null && { school_id: user.school_id }),
