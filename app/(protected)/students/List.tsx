@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getGradeLevelLabel } from "@/lib/constants";
+import { getGradeLevelLabel, isTeacherRole } from "@/lib/constants";
 import { ENROLLMENT_STATUS_LABELS, ENROLLMENT_STATUS_STYLES } from "@/lib/dashboard-utils";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hook";
 import { deleteItem, updateList } from "@/lib/redux/listSlice";
@@ -277,7 +277,7 @@ export const List = () => {
     user?.type === "registrar";
   const canEditDelete = (item: ItemType) =>
     hasSchoolManagementAccess ||
-    (user?.type === "teacher" &&
+    (isTeacherRole(user?.type) &&
       user?.system_user_id != null &&
       String(item.encoded_by) === String(user.system_user_id));
 

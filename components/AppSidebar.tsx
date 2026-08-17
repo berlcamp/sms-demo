@@ -43,6 +43,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { usePendingRequestCounts } from "@/hooks/usePendingRequestCounts";
+import { canEnrolLearners } from "@/lib/constants";
 import { useAppSelector } from "@/lib/redux/hook";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -261,6 +262,13 @@ export function AppSidebar() {
   const isSchoolNurse = userType === "school_nurse";
   const isSupportRole = isGuidanceCounselor || isSchoolNurse;
 
+  // A volunteer teacher (migration 140) works the whole Teacher Menu except
+  // enrolment, so the one module they may not use is not offered. The route and
+  // the database refuse it as well — this only keeps the menu honest.
+  const teacherMenuItems = canEnrolLearners(userType)
+    ? teacherItems
+    : teacherItems.filter((item) => item.moduleName !== "enrollment");
+
   // School management access: school_head, admin, registrar, librarian have similar functions
   const hasSchoolManagementAccess =
     isSchoolHead ||
@@ -341,7 +349,7 @@ export function AppSidebar() {
     ];
   }
   if (isGuidanceCounselor) {
-    visibleModuleItems = teacherItems.filter((item) =>
+    visibleModuleItems = teacherMenuItems.filter((item) =>
       ["teacher_anecdotal", "teacher_manifestation", "teacher_cardex"].includes(
         item.moduleName,
       ),
@@ -354,7 +362,10 @@ export function AppSidebar() {
   // and the support roles — the latter get their own slice above, and the full
   // teacher menu (grades, class record, examinations) is none of their work.
   const showTeacherMenu =
-    !isDivisionAdmin && !isTutor && !isSupportRole && teacherItems.length > 0;
+    !isDivisionAdmin &&
+    !isTutor &&
+    !isSupportRole &&
+    teacherMenuItems.length > 0;
 
   // Tutor Menu: tutors get only their own learners view.
   const tutorItems: ModuleItem[] = [
@@ -730,8 +741,11 @@ export function AppSidebar() {
             </SidebarGroupLabel>
             <SidebarGroupContent className="pb-0">
               <SidebarMenu className="space-y-1">
-                {teacherItems.map((item) => {
-                  const isActive = getIsActive(item.url, teacherItems.map((i) => i.url));
+                {teacherMenuItems.map((item) => {
+                  const isActive = getIsActive(
+                    item.url,
+                    teacherMenuItems.map((i) => i.url),
+                  );
                   const isLoading = loadingPath === item.url;
 
                   return (

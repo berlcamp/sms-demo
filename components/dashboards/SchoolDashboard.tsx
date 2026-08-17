@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getGradeLevelLabel } from "@/lib/constants";
+import { getGradeLevelLabel, isTeacherRole } from "@/lib/constants";
 import {
   ENROLLMENT_STATUS_COLORS,
   ENROLLMENT_STATUS_LABELS,
@@ -262,7 +262,10 @@ export function SchoolDashboard() {
       const activeTeacherIds = new Set<string>();
       staffData?.forEach((u) => {
         teacherNames.set(String(u.id), u.name);
-        if (u.type === "teacher") {
+        // Volunteer teachers advise sections and carry a load, so they belong in
+        // this school-facing tile. The DepEd personnel counts (071/112/118) stay
+        // keyed to the plantilla `teacher` and deliberately exclude them.
+        if (isTeacherRole(u.type)) {
           if (u.is_active) activeTeacherIds.add(String(u.id));
         }
         if (!u.is_active) return;
@@ -273,7 +276,7 @@ export function SchoolDashboard() {
             (pos.includes("head") || pos.includes("principal")));
         if (isAsstHead) breakdown.assistantSchoolHead++;
         else if (u.type === "school_head") breakdown.schoolHead++;
-        else if (u.type === "teacher") breakdown.teaching++;
+        else if (isTeacherRole(u.type)) breakdown.teaching++;
         else breakdown.nonTeaching++;
       });
       setStaffBreakdown(breakdown);

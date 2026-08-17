@@ -43,6 +43,10 @@ export {
   isLoginDisabledUserType,
   NO_PORTAL_ACCESS_MESSAGE,
   DEFAULT_STAFF_CATEGORY,
+  TEACHING_USER_TYPES,
+  isTeacherRole,
+  ENROLLMENT_BLOCKED_USER_TYPES,
+  canEnrolLearners,
 } from "./userTypes";
 export type {
   SchoolStaffUserType,

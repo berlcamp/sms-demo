@@ -47,6 +47,7 @@ type UserType =
   | "guidance_counselor"
   | "school_nurse"
   | "teacher"
+  | "volunteer_teacher"
   | "tutor"
   | "division_admin"
   | "division_type";
@@ -117,6 +118,9 @@ const teacherMenuRoles: UserType[] = [
   "registrar",
   "librarian",
   "teacher",
+  // A volunteer teacher works the whole Teacher Menu. The one guide they do not
+  // get is Enrollment, which lists its roles explicitly rather than using this.
+  "volunteer_teacher",
 ];
 
 /**

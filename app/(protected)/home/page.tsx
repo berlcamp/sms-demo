@@ -7,6 +7,7 @@ import {
   SchoolDashboard,
   TeacherDashboard,
 } from "@/components/dashboards";
+import { isTeacherRole } from "@/lib/constants";
 import { useAppSelector } from "@/lib/redux/hook";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -27,7 +28,7 @@ export default function Page() {
     if (isDivisionAdmin) {
       return <DivisionDashboard />;
     }
-    if (userType === "teacher") {
+    if (isTeacherRole(userType)) {
       return <TeacherDashboard />;
     }
     if (userType === "tutor") {

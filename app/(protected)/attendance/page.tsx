@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isTeacherRole } from "@/lib/constants";
 import { useAppSelector } from "@/lib/redux/hook";
 import { supabase } from "@/lib/supabase/client";
 import {
@@ -63,7 +64,7 @@ export default function AttendancePage() {
   const user = useAppSelector((state) => state.user.user);
   const isDivisionAdmin =
     user?.type === "division_admin" || user?.type === "division_type";
-  const isTeacher = user?.type === "teacher";
+  const isTeacher = isTeacherRole(user?.type);
   const searchParams = useSearchParams();
 
   const [schools, setSchools] = useState<SchoolOption[]>([]);

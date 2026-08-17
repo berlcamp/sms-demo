@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isTeacherRole } from "@/lib/constants";
 import { useAppSelector } from "@/lib/redux/hook";
 import { supabase } from "@/lib/supabase/client";
 import {
@@ -58,7 +59,7 @@ export default function ECCDPage() {
       setSections([]);
       return;
     }
-    if (user.type === "teacher" && user.system_user_id == null) {
+    if (isTeacherRole(user.type) && user.system_user_id == null) {
       setSections([]);
       return;
     }

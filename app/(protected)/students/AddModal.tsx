@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isTeacherRole } from "@/lib/constants";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hook";
 import { addItem, updateList } from "@/lib/redux/listSlice";
 import { supabase } from "@/lib/supabase/client";
@@ -202,7 +203,7 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
           user?.type === "registrar";
         const canEdit =
           hasSchoolManagementAccess ||
-          (user?.type === "teacher" &&
+          (isTeacherRole(user?.type) &&
             user?.system_user_id != null &&
             String(editData.encoded_by) === String(user.system_user_id));
         if (!canEdit) {

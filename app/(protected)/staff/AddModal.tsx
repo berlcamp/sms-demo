@@ -32,6 +32,7 @@ import {
   SCHOOL_STAFF_USER_TYPES,
   USER_TYPE_LABELS,
   isLoginDisabledUserType,
+  isTeacherRole,
 } from "@/lib/constants";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hook";
 import { addItem, updateList } from "@/lib/redux/listSlice";
@@ -108,12 +109,11 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
     try {
       // The role often implies the category the Non-Teaching Personnel report
       // needs; fall back to it rather than filing the person under nothing.
-      const derivedCategory =
-        data.type === "teacher"
-          ? "teacher"
-          : data.staff_category_code ||
-            DEFAULT_STAFF_CATEGORY[data.type] ||
-            null;
+      const derivedCategory = isTeacherRole(data.type)
+        ? "teacher"
+        : data.staff_category_code ||
+          DEFAULT_STAFF_CATEGORY[data.type] ||
+          null;
       const newData = {
         name: data.name.trim(),
         email: data.email.trim().toLowerCase(),
@@ -358,7 +358,7 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
               )}
             />
 
-            {form.watch("type") && form.watch("type") !== "teacher" && (
+            {form.watch("type") && !isTeacherRole(form.watch("type")) && (
               <FormField
                 control={form.control}
                 name="staff_category_code"

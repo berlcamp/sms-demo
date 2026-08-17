@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { USER_TYPE_LABELS } from "@/lib/constants";
 import { useAppDispatch } from "@/lib/redux/hook";
 import { updateList } from "@/lib/redux/listSlice";
 import { supabase } from "@/lib/supabase/client";
@@ -120,17 +121,10 @@ export const List = () => {
                 </td>
                 <td className="app__table_td">
                   <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary">
-                    {item.type === "school_head"
-                      ? "School Head"
-                      : item.type === "assistant_school_head"
-                        ? "Assistant School Principal"
-                        : item.type === "teacher"
-                        ? "Teacher"
-                        : item.type === "registrar"
-                          ? "Registrar"
-                          : item.type === "admin"
-                            ? "Admin"
-                            : "-"}
+                    {/* One lookup rather than a chain that had to be extended
+                        for every new role — and silently printed "-" for the
+                        ones nobody remembered (librarian, guidance, nurse). */}
+                    {USER_TYPE_LABELS[item.type ?? ""] ?? "-"}
                   </span>
                 </td>
                 <td className="app__table_td">

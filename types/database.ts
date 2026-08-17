@@ -17,6 +17,9 @@ export interface User {
     | "school_head"
     | "assistant_school_head"
     | "teacher"
+    // Teaches without a plantilla item — a teacher in every respect except
+    // that they may not enrol learners. See lib/constants/userTypes.ts.
+    | "volunteer_teacher"
     | "registrar"
     | "admin"
     | "super admin"
@@ -307,6 +310,7 @@ export type StaffType =
   | "school_head"
   | "assistant_school_head"
   | "teacher"
+  | "volunteer_teacher"
   | "registrar"
   | "admin"
   | "division_admin"

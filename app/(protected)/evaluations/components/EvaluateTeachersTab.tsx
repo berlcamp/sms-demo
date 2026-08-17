@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TEACHING_USER_TYPES } from "@/lib/constants";
 import { useAppSelector } from "@/lib/redux/hook";
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentSchoolYear } from "@/lib/utils/schoolYear";
@@ -62,12 +63,13 @@ export const EvaluateTeachersTab = () => {
         .eq("is_active", true)
         .eq("school_year", schoolYear);
 
-      // Fetch teachers in the school
+      // Fetch teachers in the school. Volunteer teachers stand in front of a
+      // class, so the principal evaluates them the same way.
       const { data: teacherData } = await supabase
         .from("sms_users")
         .select("id, name")
         .eq("school_id", user.school_id)
-        .eq("type", "teacher")
+        .in("type", [...TEACHING_USER_TYPES])
         .eq("is_active", true)
         .order("name");
 

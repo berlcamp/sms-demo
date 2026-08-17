@@ -32,6 +32,7 @@ import {
   getSubjectProgramShortLabel,
   isSelectiveProgram,
   isTerminalGrade,
+  canEnrolLearners,
   PHILIRI_GRADES,
   RMA_GRADES,
 } from "@/lib/constants";
@@ -81,6 +82,7 @@ export default function Page() {
   const router = useRouter();
   const sectionId = params.id as string;
   const user = useAppSelector((state) => state.user.user);
+  const canEnrol = canEnrolLearners(user?.type);
   const [section, setSection] = useState<Section | null>(null);
   const [enrollments, setEnrollments] = useState<
     Array<{
@@ -879,7 +881,13 @@ export default function Page() {
                                     </DropdownMenuSub>
                                   );
                                 })()}
-                                {enrollment.enrollment_status === "active" && (
+                                {/* Promote / Retain / Transfer Out all rewrite
+                                    the learner's enrollment row, which is the
+                                    one thing a volunteer teacher may not do —
+                                    RLS would refuse the write anyway, so the
+                                    actions are not offered. */}
+                                {enrollment.enrollment_status === "active" &&
+                                  canEnrol && (
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
