@@ -43,6 +43,11 @@ import {
   getCurrentSchoolYear,
   getSchoolYearOptions,
 } from "@/lib/utils/schoolYear";
+import {
+  fetchAssignableStaff,
+  FORMER_STAFF_LABEL,
+  type StaffOption,
+} from "@/lib/utils/staff";
 import { RootState, SubjectSchedule } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
@@ -267,9 +272,7 @@ export const AddModal = ({
       section_type: string | null;
     }>
   >([]);
-  const [teachers, setTeachers] = useState<Array<{ id: string; name: string }>>(
-    [],
-  );
+  const [teachers, setTeachers] = useState<StaffOption[]>([]);
   const [rooms, setRooms] = useState<Array<{ id: string; name: string }>>([]);
   const [conflicts, setConflicts] = useState<string[]>([]);
   /**
@@ -397,21 +400,13 @@ export const AddModal = ({
         setSections(sectionsData);
       }
 
-      // Fetch teachers (school-scoped; all users except division_admin/division_type can be assigned as subject teachers)
-      let teachersQuery = supabase
-        .from("sms_users")
-        .select("id, name")
-        .neq("type", "division_admin")
-        .neq("type", "division_type")
-        .eq("is_active", true)
-        .order("name");
-      if (user?.school_id != null) {
-        teachersQuery = teachersQuery.eq("school_id", user.school_id);
-      }
-      const { data: teachersData } = await teachersQuery;
-      if (teachersData) {
-        setTeachers(teachersData);
-      }
+      // Fetch teachers (school-scoped; all users except division_admin/
+      // division_type can be assigned as subject teachers). The row's own
+      // teacher is added even after they move schools, so an edit shows who is
+      // on it instead of an empty box over a live value.
+      setTeachers(
+        await fetchAssignableStaff(user?.school_id, editData?.teacher_id),
+      );
 
       // Fetch rooms (school-scoped)
       let roomsQuery = supabase
@@ -429,7 +424,7 @@ export const AddModal = ({
     };
 
     fetchData();
-  }, [isOpen, user?.school_id]);
+  }, [isOpen, user?.school_id, editData?.teacher_id]);
 
   // Helper function to normalize time format from HH:mm:ss to HH:mm
   const normalizeTime = (time: string): string => {
@@ -938,6 +933,7 @@ export const AddModal = ({
                             value={String(teacher.id)}
                           >
                             {teacher.name}
+                            {teacher.isFormer && ` — ${FORMER_STAFF_LABEL}`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -947,6 +943,15 @@ export const AddModal = ({
                         Saved as Temporary. Room conflicts are still checked;
                         teacher and section conflicts are not, until a teacher is
                         assigned.
+                      </p>
+                    )}
+                    {teachers.some(
+                      (t) => t.isFormer && t.id === field.value,
+                    ) && (
+                      <p className="text-xs text-amber-700">
+                        This teacher has moved to another school. Saving keeps
+                        them on the slot — pick a replacement, or &quot;No
+                        teacher (Temporary)&quot;, to hand it over.
                       </p>
                     )}
                     <FormMessage />

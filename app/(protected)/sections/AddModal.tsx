@@ -39,6 +39,11 @@ import {
 } from "@/lib/constants";
 import { formatRoomDimension } from "@/lib/utils/roomDimension";
 import {
+  fetchAssignableStaff,
+  FORMER_STAFF_LABEL,
+  type StaffOption,
+} from "@/lib/utils/staff";
+import {
   getCurrentSchoolYear,
   getSchoolYearOptions,
 } from "@/lib/utils/schoolYear";
@@ -80,9 +85,7 @@ type FormType = z.infer<typeof FormSchema>;
 
 export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [teachers, setTeachers] = useState<Array<{ id: string; name: string }>>(
-    [],
-  );
+  const [teachers, setTeachers] = useState<StaffOption[]>([]);
   const [rooms, setRooms] = useState<
     Array<{ id: string; name: string; dimension: string | null }>
   >([]);
@@ -136,27 +139,21 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
 
   useEffect(() => {
     const fetchTeachers = async () => {
-      let query = supabase
-        .from("sms_users")
-        .select("id, name")
-        .neq("type", "division_admin")
-        .neq("type", "division_type")
-        .eq("is_active", true)
-        .order("name");
-      if (user?.school_id != null) {
-        query = query.eq("school_id", user.school_id);
-      }
-      const { data, error } = await query;
-
-      if (!error && data) {
-        setTeachers(data);
-      }
+      // The section's own adviser is kept in the list even after they move
+      // schools, so an edit shows who holds the section rather than an empty
+      // box over a live value.
+      setTeachers(
+        await fetchAssignableStaff(
+          user?.school_id,
+          editData?.section_adviser_id,
+        ),
+      );
     };
 
     if (isOpen) {
       fetchTeachers();
     }
-  }, [isOpen, user?.school_id]);
+  }, [isOpen, user?.school_id, editData?.section_adviser_id]);
 
   // Classrooms available to assign to this section (migration 138). The room's
   // dimension and capacity are what the Classroom Enrollment and Size report
@@ -553,12 +550,15 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
                       {teachers.map((teacher) => (
                         <SelectItem key={teacher.id} value={String(teacher.id)}>
                           {teacher.name}
+                          {teacher.isFormer && ` — ${FORMER_STAFF_LABEL}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <FormDescription className="text-xs">
-                    Assign a teacher as section adviser (optional).
+                    {teachers.some((t) => t.isFormer && t.id === String(field.value))
+                      ? "This adviser has moved to another school. They stay on the section — and on its SF9 and report cards — until you pick someone else."
+                      : "Assign a teacher as section adviser (optional)."}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

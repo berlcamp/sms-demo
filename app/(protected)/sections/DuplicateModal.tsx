@@ -182,14 +182,13 @@ export const DuplicateModal = ({
           }
 
           if (teacherIds.length > 0) {
-            let teachersQuery = supabase
+            // Not school-scoped — see fetchStaffNames. The duplicate carries
+            // teacher_id forward, so the preview has to name who that is even
+            // when they have since moved schools.
+            const { data: teachersData } = await supabase
               .from("sms_users")
               .select("id, name")
               .in("id", teacherIds);
-            if (user?.school_id != null) {
-              teachersQuery = teachersQuery.eq("school_id", user.school_id);
-            }
-            const { data: teachersData } = await teachersQuery;
             if (teachersData) {
               const names: Record<string, string> = {};
               teachersData.forEach((t) => {

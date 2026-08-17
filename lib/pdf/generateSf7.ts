@@ -20,7 +20,44 @@ export async function generateSf7Print(params: Sf7Params): Promise<void> {
       throw new Error("School not found");
     }
 
-    const { data: users } = await supabase
+    // SF7 reports the personnel of THIS school for THIS year, which is not the
+    // same question as "who is posted here today". Two ways the two diverge:
+    //
+    //   - Someone who has since moved schools (their sms_users.school_id now
+    //     names another) may still hold this year's classes, or have held last
+    //     year's when an earlier SF7 is reprinted. Dropping them silently took
+    //     their whole teaching load off the form.
+    //   - A user assigned to two schools (migration 134) has schedules at both,
+    //     and the load query below had no school filter — so this school's SF7
+    //     counted the other school's classes as its own.
+    //
+    // So: staff posted here, plus anyone holding a schedule or an advisership
+    // here this year; and the load itself is school-filtered.
+    const { data: schedules } = await supabase
+      .from("sms_subject_schedules")
+      .select("teacher_id, subject_id, section_id")
+      .eq("school_id", schoolId)
+      .eq("school_year", schoolYear)
+      .not("teacher_id", "is", null);
+
+    // Advisers count as personnel of this school for this year on the same
+    // grounds as subject teachers, and an advisership survives a transfer
+    // (see /division/users), so it is asked for separately.
+    const { data: adviserRows } = await supabase
+      .from("sms_sections")
+      .select("section_adviser_id")
+      .eq("school_id", schoolId)
+      .eq("school_year", schoolYear)
+      .not("section_adviser_id", "is", null);
+
+    const assignedIds = [
+      ...new Set([
+        ...(schedules || []).map((s) => String(s.teacher_id)),
+        ...(adviserRows || []).map((s) => String(s.section_adviser_id)),
+      ]),
+    ];
+
+    const { data: posted } = await supabase
       .from("sms_users")
       .select("id, name, email, type, position, employee_id")
       .eq("school_id", schoolId)
@@ -28,16 +65,25 @@ export async function generateSf7Print(params: Sf7Params): Promise<void> {
       .order("type")
       .order("name");
 
-    if (!users || users.length === 0) {
+    const postedIds = new Set((posted || []).map((u) => String(u.id)));
+    const missingIds = assignedIds.filter((id) => !postedIds.has(id));
+
+    // Read by id, so a former colleague resolves whatever school they are at
+    // now. Ordered with the current staff so the form reads as one list.
+    const { data: formerStaff } = missingIds.length
+      ? await supabase
+          .from("sms_users")
+          .select("id, name, email, type, position, employee_id")
+          .in("id", missingIds)
+          .order("type")
+          .order("name")
+      : { data: [] };
+
+    const users = [...(posted || []), ...(formerStaff || [])];
+
+    if (users.length === 0) {
       throw new Error("No personnel found for this school");
     }
-
-    const userIds = users.map((u) => u.id);
-    const { data: schedules } = await supabase
-      .from("sms_subject_schedules")
-      .select("teacher_id, subject_id, section_id")
-      .in("teacher_id", userIds)
-      .eq("school_year", schoolYear);
 
     // Deduplicate: same teacher-subject-section can have multiple schedule slots
     const seen = new Set<string>();

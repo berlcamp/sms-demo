@@ -17,6 +17,7 @@ import { useAppDispatch, useAppSelector } from "@/lib/redux/hook";
 import { deleteItem } from "@/lib/redux/listSlice";
 import { supabase } from "@/lib/supabase/client";
 import { formatRoomDimension } from "@/lib/utils/roomDimension";
+import { fetchStaffNames } from "@/lib/utils/staff";
 import { RootState, Section } from "@/types";
 import {
   BookOpen,
@@ -75,28 +76,16 @@ export const List = () => {
 
       if (adviserIds.length === 0) return;
 
-      let query = supabase
-        .from("sms_users")
-        .select("id, name")
-        .in("id", adviserIds);
-      if (user?.school_id != null) {
-        query = query.eq("school_id", user.school_id);
-      }
-      const { data } = await query;
-
-      if (data) {
-        const names: Record<string, string> = {};
-        data.forEach((adviser) => {
-          names[adviser.id] = adviser.name;
-        });
-        setAdviserNames(names);
-      }
+      // Not school-scoped: an adviser who has since moved schools is still the
+      // adviser this section was signed under, and SF9 / the report card print
+      // their name by id anyway — the filter only made the list disagree.
+      setAdviserNames(await fetchStaffNames(adviserIds));
     };
 
     if (list.length > 0) {
       fetchAdvisers();
     }
-  }, [list, user?.school_id]);
+  }, [list]);
 
   // Classroom names for the sections that have one assigned (migration 138)
   useEffect(() => {

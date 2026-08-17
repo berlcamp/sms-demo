@@ -5,6 +5,7 @@ import { TemporaryScheduleBadge } from "@/components/TemporaryScheduleBadge";
 import { useAppSelector } from "@/lib/redux/hook";
 import { supabase } from "@/lib/supabase/client";
 import { formatDays, formatTimeRange } from "@/lib/utils/scheduleConflicts";
+import { fetchStaffNames } from "@/lib/utils/staff";
 import { RootState, SubjectSchedule } from "@/types";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
@@ -79,23 +80,11 @@ export const List = () => {
         }
       }
 
-      // Fetch teachers (school-scoped)
+      // Fetch teachers. Deliberately NOT school-scoped: a teacher who has
+      // since moved schools still taught this slot, and filtering them out
+      // rendered the row as "-" — indistinguishable from an unassigned one.
       if (teacherIds.length > 0) {
-        let query = supabase
-          .from("sms_users")
-          .select("id, name")
-          .in("id", teacherIds);
-        if (user?.school_id != null) {
-          query = query.eq("school_id", user.school_id);
-        }
-        const { data } = await query;
-        if (data) {
-          const names: Record<string, string> = {};
-          data.forEach((teacher) => {
-            names[teacher.id] = teacher.name;
-          });
-          setTeacherNames(names);
-        }
+        setTeacherNames(await fetchStaffNames(teacherIds));
       }
 
       // Fetch rooms (school-scoped)

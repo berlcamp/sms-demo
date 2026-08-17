@@ -116,15 +116,13 @@ export const DuplicateModal = ({
         setSectionName(sectionData.name);
       }
 
-      // Fetch teacher (school-scoped)
-      let teacherQuery = supabase
+      // Fetch teacher. Not school-scoped: the duplicate copies teacher_id, so
+      // the preview must name the holder even after they move schools.
+      const { data: teacherData } = await supabase
         .from("sms_users")
         .select("id, name")
-        .eq("id", scheduleData.teacher_id);
-      if (user?.school_id != null) {
-        teacherQuery = teacherQuery.eq("school_id", user.school_id);
-      }
-      const { data: teacherData } = await teacherQuery.single();
+        .eq("id", scheduleData.teacher_id)
+        .maybeSingle();
       if (teacherData) {
         setTeacherName(teacherData.name);
       }

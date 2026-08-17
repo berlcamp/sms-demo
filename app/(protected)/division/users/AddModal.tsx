@@ -47,9 +47,10 @@ import {
 import { useAppDispatch } from "@/lib/redux/hook";
 import { addItem, updateList } from "@/lib/redux/listSlice";
 import { supabase } from "@/lib/supabase/client";
+import { getCurrentSchoolYear } from "@/lib/utils/schoolYear";
 import { User } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronsUpDown, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronsUpDown, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -108,6 +109,78 @@ const resolveActiveSchool = (
   return selected[0];
 };
 
+const scheduleTable = "sms_subject_schedules";
+const sectionTable = "sms_sections";
+
+interface LeftBehind {
+  /** Schedule rows at the removed school still naming this user, this year. */
+  schedules: number;
+  /** Sections at the removed school still advised by them, this year. */
+  advisories: number;
+}
+
+/**
+ * What the user still holds at the schools they are about to be removed from.
+ *
+ * Scoped to the current school year on purpose: last year's timetable is the
+ * record of who actually taught, and a transfer must not rewrite it.
+ */
+const findLeftBehind = async (
+  userId: string,
+  removedSchoolIds: string[],
+  schoolYear: string,
+): Promise<LeftBehind> => {
+  if (removedSchoolIds.length === 0) return { schedules: 0, advisories: 0 };
+
+  const [{ count: schedules }, { count: advisories }] = await Promise.all([
+    supabase
+      .from(scheduleTable)
+      .select("id", { count: "exact", head: true })
+      .eq("teacher_id", userId)
+      .eq("school_year", schoolYear)
+      .in("school_id", removedSchoolIds),
+    supabase
+      .from(sectionTable)
+      .select("id", { count: "exact", head: true })
+      .eq("section_adviser_id", userId)
+      .eq("school_year", schoolYear)
+      .in("school_id", removedSchoolIds),
+  ]);
+
+  return { schedules: schedules ?? 0, advisories: advisories ?? 0 };
+};
+
+/**
+ * Releases this year's subject schedules at the schools the user is leaving,
+ * so the slots fall back to the "Temporary" state migration 117 already
+ * defines rather than naming someone who has gone.
+ *
+ * Runs BEFORE the assignment itself changes: the conflict trigger fires on this
+ * UPDATE like any other (a room clash with a `conflict_override` row can still
+ * reject it), and failing first leaves nothing half-done.
+ *
+ * Advisership is deliberately NOT cleared. SF9 and the report card print the
+ * adviser live by id, so blanking it would strip the name off cards already
+ * issued this year; it is reported to the division admin instead and reassigned
+ * on the section itself.
+ */
+const releaseSchedules = async (
+  userId: string,
+  removedSchoolIds: string[],
+  schoolYear: string,
+) => {
+  if (removedSchoolIds.length === 0) return;
+
+  const { error } = await supabase
+    .from(scheduleTable)
+    .update({ teacher_id: null })
+    .eq("teacher_id", userId)
+    .eq("school_year", schoolYear)
+    .in("school_id", removedSchoolIds);
+
+  if (error) throw new Error(`Could not release their schedules: ${error.message}`);
+};
+
 /**
  * Brings `sms_user_schools` in line with the picker. Diffed rather than
  * wiped-and-rewritten so an unchanged assignment keeps its row (and its
@@ -155,6 +228,10 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
   const [schools, setSchools] = useState<
     { id: string; school_id: string; name: string }[]
   >([]);
+  // The assignment set as it stands in the database, so the picker's removals
+  // can be worked out before the save rather than inside syncUserSchools.
+  const [assignedSchoolIds, setAssignedSchoolIds] = useState<string[]>([]);
+  const [leftBehind, setLeftBehind] = useState<LeftBehind | null>(null);
 
   const dispatch = useAppDispatch();
 
@@ -183,6 +260,15 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
   const selectedType = form.watch("type");
   const selectedSchoolIds = form.watch("school_ids");
 
+  // Schools the picker has dropped since the modal opened — a transfer out.
+  const removedSchoolIds = assignedSchoolIds.filter(
+    (id) => !selectedSchoolIds.includes(id),
+  );
+  const removedKey = removedSchoolIds.join(",");
+  const removedSchoolNames = removedSchoolIds.map(
+    (id) => schools.find((s) => String(s.id) === id)?.name ?? `School ${id}`,
+  );
+
   const onSubmit = async (data: FormType) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -204,6 +290,15 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
       };
 
       if (editData?.id) {
+        // Hand this year's classes back before the assignment goes, so a
+        // rejected release (a room clash on the trigger) stops the transfer
+        // rather than leaving schedules naming someone who has left.
+        await releaseSchedules(
+          editData.id,
+          removedSchoolIds,
+          getCurrentSchoolYear(),
+        );
+
         const { error } = await supabase
           .from(table)
           .update(newData)
@@ -236,7 +331,11 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
         }
 
         onClose();
-        toast.success("User updated successfully!");
+        toast.success(
+          leftBehind && leftBehind.schedules > 0
+            ? `User updated. ${leftBehind.schedules} schedule slot(s) released to Temporary.`
+            : "User updated successfully!",
+        );
       } else {
         const { data: inserted, error } = await supabase
           .from(table)
@@ -282,6 +381,10 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
 
   useEffect(() => {
     if (isOpen) {
+      // Cleared here as well as on close: the modal is reused for "Add" after
+      // an edit, and a stale set would read as a transfer out of schools the
+      // new user was never in.
+      if (!editData?.id) setAssignedSchoolIds([]);
       form.reset({
         name: editData?.name || "",
         employee_id: editData?.employee_id ?? "",
@@ -306,10 +409,9 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
       .eq("user_id", editData.id)
       .then(({ data, error }) => {
         if (!isMounted || error || !data) return;
-        form.setValue(
-          "school_ids",
-          data.map((r) => String(r.school_id)),
-        );
+        const ids = data.map((r) => String(r.school_id));
+        setAssignedSchoolIds(ids);
+        form.setValue("school_ids", ids);
       });
 
     return () => {
@@ -317,9 +419,40 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
     };
   }, [isOpen, editData?.id, form]);
 
+  // What a removal would cost, shown while the picker is still open. Recomputed
+  // as the selection changes so the warning always describes the current state
+  // of the form, not the state it had when the modal opened.
+  useEffect(() => {
+    if (!isOpen || !editData?.id) {
+      setLeftBehind(null);
+      return;
+    }
+    // Depends on the joined key, not the array: form.watch hands back a new
+    // array every render, and this effect sets state — an array dependency
+    // would re-trigger itself forever.
+    const removed = removedKey ? removedKey.split(",") : [];
+    if (removed.length === 0) {
+      setLeftBehind(null);
+      return;
+    }
+
+    let isMounted = true;
+    findLeftBehind(editData.id, removed, getCurrentSchoolYear()).then(
+      (result) => {
+        if (isMounted) setLeftBehind(result);
+      },
+    );
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, editData?.id, removedKey]);
+
   const handleClose = () => {
     if (!isSubmitting) {
       form.reset();
+      setAssignedSchoolIds([]);
+      setLeftBehind(null);
       onClose();
     }
   };
@@ -454,6 +587,45 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
                         })}
                       </div>
                     )}
+
+                    {leftBehind &&
+                      (leftBehind.schedules > 0 ||
+                        leftBehind.advisories > 0) && (
+                        <div className="mt-2 flex gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-800/60 dark:bg-amber-950/20">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                          <div className="text-xs">
+                            <p className="font-semibold text-amber-800 dark:text-amber-300">
+                              Removing {removedSchoolNames.join(", ")} affects
+                              work still assigned there.
+                            </p>
+                            <ul className="mt-1 list-disc space-y-0.5 pl-4 text-muted-foreground">
+                              {leftBehind.schedules > 0 && (
+                                <li>
+                                  <span className="font-medium text-foreground">
+                                    {leftBehind.schedules} subject schedule
+                                    {leftBehind.schedules === 1 ? "" : "s"}
+                                  </span>{" "}
+                                  for {getCurrentSchoolYear()} will be released
+                                  to Temporary (no teacher) on save. Earlier
+                                  school years are left as they are.
+                                </li>
+                              )}
+                              {leftBehind.advisories > 0 && (
+                                <li>
+                                  Adviser of{" "}
+                                  <span className="font-medium text-foreground">
+                                    {leftBehind.advisories} section
+                                    {leftBehind.advisories === 1 ? "" : "s"}
+                                  </span>
+                                  , which is kept — report cards and SF9 already
+                                  print their name. Reassign it on the section
+                                  itself.
+                                </li>
+                              )}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
 
                     <FormDescription className="text-xs">
                       {selectedSchoolIds.length > 1
