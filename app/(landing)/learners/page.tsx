@@ -17,7 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ORG_NAME } from "@/lib/constants/branding";
+import { TEST_SCHOOL_ID_FILTER } from "@/lib/constants/landing";
 import { supabase } from "@/lib/supabase/client";
+import { fetchPublicEnrollmentCounts } from "@/lib/utils/publicEnrollment";
 import { Calendar, GraduationCap } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -60,6 +62,7 @@ export default function LearnersPage() {
     const { data } = await supabase
       .from("sms_schools")
       .select("district")
+      .not("id", "in", TEST_SCHOOL_ID_FILTER)
       .eq("is_active", true)
       .not("district", "is", null);
 
@@ -77,6 +80,7 @@ export default function LearnersPage() {
       let schoolQuery = supabase
         .from("sms_schools")
         .select("id, school_id, name, district")
+        .not("id", "in", TEST_SCHOOL_ID_FILTER)
         .eq("is_active", true);
 
       if (district && district !== "all") {
@@ -93,17 +97,7 @@ export default function LearnersPage() {
         return;
       }
 
-      const { data: enrollments, error: enrollError } = await supabase
-        .from("sms_enrollments")
-        .select("school_id, grade_level")
-        .eq("status", "approved")
-        .eq("school_year", schoolYear);
-
-      if (enrollError) {
-        setRows([]);
-        setLoading(false);
-        return;
-      }
+      const counts = await fetchPublicEnrollmentCounts(schoolYear);
 
       const schoolMap = new Map<string, { school_id: string; name: string }>();
       schools.forEach((s) => {
@@ -118,10 +112,8 @@ export default function LearnersPage() {
         { kinder: number; elem: number; jhs: number; shs: number }
       >();
 
-      for (const e of enrollments || []) {
-        const sid = e.school_id ? String(e.school_id) : null;
-        if (!sid) continue;
-
+      for (const e of counts) {
+        const sid = String(e.school_id);
         if (!countsBySchool.has(sid)) {
           countsBySchool.set(sid, {
             kinder: 0,
@@ -131,12 +123,13 @@ export default function LearnersPage() {
           });
         }
         const c = countsBySchool.get(sid)!;
-        const gl = e.grade_level ?? 0;
+        const learners = e.male + e.female;
+        const gl = e.grade_level;
 
-        if (gl === 0) c.kinder++;
-        else if (gl >= 1 && gl <= 6) c.elem++;
-        else if (gl >= 7 && gl <= 10) c.jhs++;
-        else if (gl >= 11 && gl <= 12) c.shs++;
+        if (gl === 0) c.kinder += learners;
+        else if (gl >= 1 && gl <= 6) c.elem += learners;
+        else if (gl >= 7 && gl <= 10) c.jhs += learners;
+        else if (gl >= 11 && gl <= 12) c.shs += learners;
       }
 
       const result: SchoolLearnerRow[] = schools.map((s) => {
