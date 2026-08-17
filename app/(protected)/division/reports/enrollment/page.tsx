@@ -96,20 +96,40 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
+  // Only "Enrollment (Total)" at modality "All" can be derived from live
+  // enrollment records — the same single combination the school-side autofill
+  // supports. Every other category (transfer in/out, dropout, promotee,
+  // repeater, balik-aral, 4Ps) and every specific modality has no operational
+  // source, so those still read what the school submitted.
+  const isLive = category === "enrollment" && modality === "all";
+
   useEffect(() => {
     let isMounted = true;
     const fetch = async () => {
       setLoading(true);
-      const { data, error } = await supabase.rpc(
-        "division_enrollment_summary",
-        {
+      const fetchSubmitted = () =>
+        supabase.rpc("division_enrollment_summary", {
           p_school_year: sy,
           p_semester: null,
           p_category: category,
           p_modality: modality,
           p_school_type: schoolType === "all" ? null : schoolType,
-        },
-      );
+        });
+
+      let { data, error } = isLive
+        ? await supabase.rpc("division_enrollment_actual", {
+            p_school_year: sy,
+            p_semester: null,
+            p_school_type: schoolType === "all" ? null : schoolType,
+          })
+        : await fetchSubmitted();
+
+      // PGRST202 = no such function. Migration 140 may not be applied yet;
+      // fall back to the submitted figures so the page still renders.
+      if (isLive && error?.code === "PGRST202") {
+        ({ data, error } = await fetchSubmitted());
+      }
+
       if (!isMounted) return;
       if (error) {
         toast.error(error.message);
@@ -123,7 +143,7 @@ export default function Page() {
     return () => {
       isMounted = false;
     };
-  }, [sy, category, modality, schoolType]);
+  }, [sy, category, modality, schoolType, isLive]);
 
   const { schoolRows, grades, grandTotals } = useMemo(() => {
     const schoolMap = new Map<number, SchoolTotals>();
@@ -173,13 +193,13 @@ export default function Page() {
   const exportRows = () =>
     schoolRows.map((s) => ({
       School: s.school_name,
-      Status: s.status,
+      Submission: s.status,
       Male: s.male,
       Female: s.female,
       Total: s.total,
     }));
 
-  const headers = ["School", "Status", "Male", "Female", "Total"];
+  const headers = ["School", "Submission", "Male", "Female", "Total"];
 
   const toggleExpand = (id: number) =>
     setExpanded((prev) => {
@@ -234,7 +254,11 @@ export default function Page() {
   return (
     <DivisionReportShell
       title="Enrollment"
-      description="Per-school learner counts by grade level, category, and modality."
+      description={
+        isLive
+          ? "Per-school learner counts by grade level and sex, computed live from enrollment records. No school submission required — the Submission column only shows whether the school has also filed the DepEd form."
+          : "Per-school learner counts by grade level, category, and modality, as submitted by each school."
+      }
       loading={loading}
       recordCount={schoolRows.length}
       exportDisabled={schoolRows.length === 0}
@@ -303,7 +327,7 @@ export default function Page() {
               <TableRow>
                 <TableHead className="w-[40px]"></TableHead>
                 <TableHead>School</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Submission</TableHead>
                 <TableHead className="text-right">Male</TableHead>
                 <TableHead className="text-right">Female</TableHead>
                 <TableHead className="text-right">Total</TableHead>
