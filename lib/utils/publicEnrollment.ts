@@ -75,6 +75,10 @@ export async function fetchPublicEnrollmentCounts(
 ): Promise<PublicEnrollmentCount[]> {
   const { data, error } = await supabase.rpc("public_enrollment_counts", {
     p_school_year: schoolYear,
+    // Naming a school scopes the RPC to it and lifts the test-school
+    // exclusion — a page reached by its own slug is a deliberate lookup, not
+    // an aggregate (migration 142).
+    ...(schoolId != null && { p_school_id: schoolId }),
   });
 
   if (!error) {
