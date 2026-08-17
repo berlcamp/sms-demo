@@ -15,6 +15,10 @@ export const StudentFormSchema = z.object({
   gender: z.enum(["male", "female"]),
   mother_tongue: z.string().optional(),
   ip_ethnic_group: z.string().optional(),
+  // Migration 114. Distinct from ip_ethnic_group, which is the Indigenous
+  // Peoples group and blank for everyone else.
+  ethnicity: z.string().optional(),
+  is_4ps: z.boolean().default(false),
   religion: z.string().optional(),
   purok: z.string().optional(),
   barangay: z.string().optional(),
@@ -47,6 +51,8 @@ export const ExistingStudentSchema = z.object({
   gender: z.enum(["male", "female"]).optional(),
   mother_tongue: z.string().optional(),
   ip_ethnic_group: z.string().optional(),
+  ethnicity: z.string().optional(),
+  is_4ps: z.boolean().optional(),
   religion: z.string().optional(),
   purok: z.string().optional(),
   barangay: z.string().optional(),
@@ -77,6 +83,9 @@ export const EnrollmentFormSchema = z
     school_year: z.string().min(1, "School year is required"),
     grade_level: z.number().min(GRADE_LEVEL_MIN).max(GRADE_LEVEL_MAX),
     semester: z.number().min(1).max(2).optional().nullable(),
+    // Per enrolment, not per learner (migration 148): a returning learner is
+    // an ordinary enrolment the following year.
+    is_balik_aral: z.boolean().default(false),
   })
   .refine(
     (data) => {
@@ -106,6 +115,8 @@ export const STUDENT_FORM_DEFAULTS: StudentFormType = {
   gender: "male",
   mother_tongue: "",
   ip_ethnic_group: "",
+  ethnicity: "",
+  is_4ps: false,
   religion: "",
   purok: "",
   barangay: "",

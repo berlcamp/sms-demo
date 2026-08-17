@@ -8,6 +8,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -241,6 +242,22 @@ export default function StudentRecordStep({
                 </FormItem>
               )}
             />
+            {/* Ethnicity and 4Ps are SF1 fields that migration 114 added to
+                the learner record but only the Students screen ever asked for.
+                Asking at enrolment is what makes the division's 4Ps figure
+                mean anything — see that migration's note on the default. */}
+            <FormField
+              control={form.control}
+              name="ethnicity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium">Ethnicity</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ethnicity" className="h-10" {...field} disabled={disabled} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="religion"
@@ -250,6 +267,29 @@ export default function StudentRecordStep({
                   <FormControl>
                     <Input placeholder="Religion" className="h-10" {...field} disabled={disabled} />
                   </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="is_4ps"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium">
+                    4Ps Recipient
+                  </FormLabel>
+                  <div className="flex h-10 items-center gap-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? false}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                        disabled={disabled}
+                      />
+                    </FormControl>
+                    <span className="text-sm text-muted-foreground">
+                      Household is a 4Ps beneficiary
+                    </span>
+                  </div>
                 </FormItem>
               )}
             />

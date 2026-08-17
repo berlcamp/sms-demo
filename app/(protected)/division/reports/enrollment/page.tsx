@@ -59,9 +59,13 @@ const CATEGORIES: { value: Category; label: string }[] = [
 ];
 
 /**
- * Categories `division_enrollment_actual` can derive (migrations 140, 144).
+ * Categories `division_enrollment_actual` can derive (migrations 140, 144, 147, 148).
  * Definitions match generateSf4.ts, so a school's own SF4 and the division's
- * view of it cannot disagree; repeater follows migration 118.
+ * view of it cannot disagree; repeater follows migration 118 and fourps reads
+ * sms_students.is_4ps (migration 114).
+ *
+ * Only the per-modality figures are left out, and that is a real gap in the
+ * schema rather than a choice: learning modality is stored nowhere.
  */
 const LIVE_CATEGORIES = new Set<Category>([
   "enrollment",
@@ -70,6 +74,8 @@ const LIVE_CATEGORIES = new Set<Category>([
   "dropout",
   "promotee",
   "repeater",
+  "fourps",
+  "balik_aral",
 ]);
 
 const MODALITIES: { value: Modality; label: string }[] = [
@@ -110,9 +116,9 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
-  // Everything left out has no operational source: Balik-Aral and 4Ps are not
-  // recorded against a learner, and learning modality is not stored at all —
-  // those three keep reading what the school submitted.
+  // What is left out has no operational source: no returning-learner flag
+  // exists and learning modality is stored nowhere, so Balik-Aral and every
+  // specific modality keep reading what the school submitted.
   const isLive = LIVE_CATEGORIES.has(category) && modality === "all";
   const categoryLabel =
     CATEGORIES.find((c) => c.value === category)?.label ?? category;
@@ -281,7 +287,7 @@ export default function Page() {
           ? `Per-school ${categoryLabel.toLowerCase()} counts by grade level and sex, computed live from enrollment records. No school submission required. To see which schools have filed the DepEd form, open a school.`
           : `Per-school ${categoryLabel.toLowerCase()} counts as submitted by each school. This combination has no operational source — ${
               modality === "all"
-                ? "it is not recorded against a learner"
+                ? "it is not recorded anywhere"
                 : "learning modality is not stored"
             }, so it can only be typed by the school.`
       }

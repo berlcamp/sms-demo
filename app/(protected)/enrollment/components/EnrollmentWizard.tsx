@@ -170,6 +170,7 @@ export default function EnrollmentWizard({
       school_year: getCurrentSchoolYear(),
       grade_level: 1,
       semester: null,
+      is_balik_aral: false,
     },
   });
 
@@ -919,6 +920,8 @@ export default function EnrollmentWizard({
               gender: studentData.gender,
               mother_tongue: studentData.mother_tongue?.trim() || null,
               ip_ethnic_group: studentData.ip_ethnic_group?.trim() || null,
+              ethnicity: studentData.ethnicity?.trim() || null,
+              is_4ps: studentData.is_4ps ?? false,
               religion: studentData.religion?.trim() || null,
               purok: studentData.purok?.trim() || null,
               barangay: studentData.barangay?.trim() || null,
@@ -996,6 +999,7 @@ export default function EnrollmentWizard({
               enrollment_date: new Date().toISOString().split("T")[0],
               status: "approved",
               enrollment_status: "active",
+              is_balik_aral: enrollData.is_balik_aral ?? false,
               enrolled_by: user.system_user_id,
               approved_by: user.system_user_id,
               ...(user?.school_id != null && { school_id: user.school_id }),
@@ -1194,6 +1198,7 @@ export default function EnrollmentWizard({
                 enrollment_date: new Date().toISOString().split("T")[0],
                 status: "approved",
                 enrollment_status: "active",
+                is_balik_aral: enrollData.is_balik_aral ?? false,
                 enrolled_by: user.system_user_id,
                 approved_by: user.system_user_id,
                 ...(user?.school_id != null && { school_id: user.school_id }),

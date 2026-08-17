@@ -1,5 +1,6 @@
 "use client";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
   FormField,
@@ -248,6 +249,36 @@ export default function EnrollmentDetailsStep({
             />
           )}
       </div>
+
+      {/* Balik-Aral belongs to THIS enrolment, not to the learner (migration
+          148): the same learner is an ordinary enrolment the following year,
+          which is why it sits on this step rather than the learner record. */}
+      <FormField
+        control={form.control}
+        name="is_balik_aral"
+        render={({ field }) => (
+          <FormItem className="rounded-lg border p-4">
+            <div className="flex items-start gap-3">
+              <FormControl>
+                <Checkbox
+                  checked={field.value ?? false}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                  disabled={disabled}
+                />
+              </FormControl>
+              <div className="space-y-1">
+                <FormLabel className="text-sm font-medium">
+                  Balik-Aral
+                </FormLabel>
+                <p className="text-xs text-muted-foreground">
+                  Learner is returning to school after a year or more out.
+                  Applies to this school year only.
+                </p>
+              </div>
+            </div>
+          </FormItem>
+        )}
+      />
 
       <FormField
         control={form.control}
