@@ -238,6 +238,10 @@ export const DuplicateModal = ({
         section_type: sourceSection.section_type ?? null,
         section_adviser_id: sourceSection.section_adviser_id ?? null,
         room_id: sourceSection.room_id ?? null,
+        // Carry the SHS strand through, else the copy of a Grade 11-12 section
+        // silently drops out of the Track & Strand report (migration 145).
+        strand: sourceSection.strand ?? null,
+        specialization: sourceSection.specialization ?? null,
         max_students: sourceSection.max_students ?? null,
         is_active: true,
         ...(user?.school_id != null && { school_id: user.school_id }),

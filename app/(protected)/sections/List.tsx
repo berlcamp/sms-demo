@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   getGradeLevelLabel,
+  getStrandLabel,
+  isShsGrade,
   SECTION_TYPE_LABELS,
 } from "@/lib/constants";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hook";
@@ -291,6 +293,7 @@ export const List = () => {
               <th className="app__table_th">Grade Level</th>
               <th className="app__table_th">School Year</th>
               <th className="app__table_th">Section Type</th>
+              <th className="app__table_th">SHS Strand</th>
               <th className="app__table_th">Adviser</th>
               <th className="app__table_th">Classroom</th>
               <th className="app__table_th">Scheduled Subjects</th>
@@ -328,6 +331,27 @@ export const List = () => {
                         </span>
                       ) : (
                         "-"
+                      )}
+                    </div>
+                  </div>
+                </td>
+                {/* A Grade 11-12 section with no strand recorded drops out
+                    of the division's Track & Strand report entirely, so flag
+                    it here rather than letting it fail silently. */}
+                <td className="app__table_td">
+                  <div className="app__table_cell_text">
+                    <div className="app__table_cell_title">
+                      {!isShsGrade(item.grade_level) ? (
+                        <span className="text-muted-foreground">-</span>
+                      ) : item.strand ? (
+                        <span>
+                          {getStrandLabel(item.strand)}
+                          {item.specialization ? ` — ${item.specialization}` : ""}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
+                          Not set
+                        </span>
                       )}
                     </div>
                   </div>

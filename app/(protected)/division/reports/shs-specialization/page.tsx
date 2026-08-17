@@ -45,6 +45,8 @@ interface Row {
   female: number;
   total: number;
   status: "draft" | "submitted" | "locked" | "missing";
+  /** Where this school's figures came from. */
+  source: "live" | "submitted";
 }
 
 export default function Page() {
@@ -60,22 +62,40 @@ export default function Page() {
     let isMounted = true;
     const fetch = async () => {
       setLoading(true);
-      const { data, error } = await supabase.rpc(
-        "division_shs_specialization_summary",
-        {
-          p_school_year: sy,
-          p_semester: semester,
-          p_grade_level: null,
-          p_strand: strand === "all" ? null : strand,
-        },
-      );
+      const args = {
+        p_school_year: sy,
+        p_semester: semester,
+        p_grade_level: null,
+        p_strand: strand === "all" ? null : strand,
+      };
+
+      // Derived where the school has recorded strand + specialization on its
+      // SHS sections (migration 145), submitted form where it has not.
+      // Preference is per school, so a partial rollout stays readable.
+      const [liveRes, subRes] = await Promise.all([
+        supabase.rpc("division_shs_specialization_actual", args),
+        supabase.rpc("division_shs_specialization_summary", args),
+      ]);
       if (!isMounted) return;
-      if (error) {
-        toast.error(error.message);
-        setRows([]);
-      } else {
-        setRows((data as Row[]) || []);
+
+      // PGRST202 = migration 145 not applied yet; fall back entirely.
+      if (liveRes.error && liveRes.error.code !== "PGRST202") {
+        toast.error(liveRes.error.message);
       }
+      if (subRes.error) {
+        toast.error(subRes.error.message);
+      }
+
+      const live = ((liveRes.data as Row[]) || []).map((r) => ({
+        ...r,
+        source: "live" as const,
+      }));
+      const schoolsWithLive = new Set(live.map((r) => Number(r.school_id)));
+      const submitted = ((subRes.data as Row[]) || [])
+        .filter((r) => !schoolsWithLive.has(Number(r.school_id)))
+        .map((r) => ({ ...r, source: "submitted" as const }));
+
+      setRows([...live, ...submitted]);
       setLoading(false);
     };
     fetch();

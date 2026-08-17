@@ -410,6 +410,8 @@ export interface Section {
   section_type?: SectionType | null;
   section_adviser_id?: string | null; // Foreign key → sms_users.id
   room_id?: string | null; // Foreign key → sms_rooms.id — the section's classroom (migration 138)
+  strand?: string | null; // SHS strand code, grades 11-12 only (migration 145). Track derives from it.
+  specialization?: string | null; // SHS specialization within the strand, mainly TVL. Free text.
   max_students?: number | null;
   is_active: boolean;
   created_at: string;

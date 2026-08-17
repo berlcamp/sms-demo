@@ -40,13 +40,15 @@ interface Row {
   school_id: number;
   school_name: string;
   school_type: string | null;
-  track: string;
+  track?: string; // submitted rows only; the live RPC derives it from the strand
   strand: string;
   grade_level: number;
   male: number;
   female: number;
   total: number;
   status: "draft" | "submitted" | "locked" | "missing";
+  /** Where this school's figures came from. */
+  source: "live" | "submitted";
 }
 
 interface SchoolAgg {
@@ -58,6 +60,7 @@ interface SchoolAgg {
   total: number;
   byStrand: Map<string, { male: number; female: number; total: number }>;
   byStrandGrade: Map<string, Row>;
+  source: Row["source"];
 }
 
 export default function Page() {
@@ -73,21 +76,40 @@ export default function Page() {
     let isMounted = true;
     const fetch = async () => {
       setLoading(true);
-      const { data, error } = await supabase.rpc(
-        "division_track_strand_summary",
-        {
-          p_school_year: sy,
-          p_semester: semester,
-          p_grade_level: null,
-        },
-      );
+      const args = {
+        p_school_year: sy,
+        p_semester: semester,
+        p_grade_level: null,
+      };
+
+      // Derived figures where the school has recorded its section strands
+      // (migration 145), the submitted form where it has not. Preference is
+      // per school, so the report stays usable through a rollout in which
+      // some schools have filled the strands in and others have not yet.
+      const [liveRes, subRes] = await Promise.all([
+        supabase.rpc("division_track_strand_actual", args),
+        supabase.rpc("division_track_strand_summary", args),
+      ]);
       if (!isMounted) return;
-      if (error) {
-        toast.error(error.message);
-        setRows([]);
-      } else {
-        setRows((data as Row[]) || []);
+
+      // PGRST202 = migration 145 not applied yet; fall back entirely.
+      if (liveRes.error && liveRes.error.code !== "PGRST202") {
+        toast.error(liveRes.error.message);
       }
+      if (subRes.error) {
+        toast.error(subRes.error.message);
+      }
+
+      const live = ((liveRes.data as Row[]) || []).map((r) => ({
+        ...r,
+        source: "live" as const,
+      }));
+      const schoolsWithLive = new Set(live.map((r) => Number(r.school_id)));
+      const submitted = ((subRes.data as Row[]) || [])
+        .filter((r) => !schoolsWithLive.has(Number(r.school_id)))
+        .map((r) => ({ ...r, source: "submitted" as const }));
+
+      setRows([...live, ...submitted]);
       setLoading(false);
     };
     fetch();
@@ -121,6 +143,7 @@ export default function Page() {
           total: 0,
           byStrand: new Map(),
           byStrandGrade: new Map(),
+          source: r.source,
         };
         map.set(id, agg);
       }
@@ -184,6 +207,12 @@ export default function Page() {
       return next;
     });
 
+  // "Live" means the school has recorded strands on its SHS sections and the
+  // figures are derived; otherwise this falls back to the submitted form, and
+  // the badge says which state that submission is in.
+  const sourceBadge = (s: SchoolAgg) =>
+    s.source === "live" ? <Badge>Live</Badge> : statusBadge(s.status);
+
   const statusBadge = (s: Row["status"]) => {
     if (s === "missing") return <Badge variant="outline">Not submitted</Badge>;
     if (s === "draft") return <Badge variant="outline">Draft</Badge>;
@@ -210,7 +239,7 @@ export default function Page() {
   return (
     <DivisionReportShell
       title="Track & Strand"
-      description="SHS learners per school, grouped by strand. Click a school to expand Grade 11 / Grade 12 breakdown."
+      description="SHS learners per school, grouped by strand. Derived live from section strands where a school has recorded them, otherwise from its submitted form. Click a school to expand Grade 11 / Grade 12 breakdown."
       loading={loading}
       recordCount={schools.length}
       exportDisabled={schools.length === 0}
@@ -261,7 +290,7 @@ export default function Page() {
               <TableRow>
                 <TableHead className="w-[40px]"></TableHead>
                 <TableHead>School</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Source</TableHead>
                 {strandsInUse.map((code) => (
                   <TableHead key={code} className="text-right">
                     {getStrandLabel(code)}
@@ -298,7 +327,7 @@ export default function Page() {
                         {s.school_name}
                       </Link>
                     </TableCell>
-                    <TableCell>{statusBadge(s.status)}</TableCell>
+                    <TableCell>{sourceBadge(s)}</TableCell>
                     {strandsInUse.map((code) => (
                       <TableCell key={code} className="text-right">
                         {s.byStrand.get(code)?.total ?? 0}

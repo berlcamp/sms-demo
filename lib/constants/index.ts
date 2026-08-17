@@ -19,6 +19,7 @@ export {
   getStrandLabel,
   getTrackLabel,
   getTrackForStrand,
+  isShsGrade,
 } from "./shs";
 export type { ShsTrack, ShsStrand } from "./shs";
 

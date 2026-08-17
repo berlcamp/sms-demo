@@ -34,6 +34,14 @@ export const SHS_STRANDS: ShsStrand[] = [
   { track: "arts_design", code: "arts_design", label: "Arts & Design" },
 ];
 
+/**
+ * Senior High is Grades 11-12. Strand, specialization and every other SHS
+ * field is meaningful only here — migration 145 enforces the same rule in a
+ * CHECK on sms_sections.
+ */
+export const isShsGrade = (gradeLevel: number | null | undefined): boolean =>
+  gradeLevel === 11 || gradeLevel === 12;
+
 export const getStrandLabel = (code: string): string =>
   SHS_STRANDS.find((s) => s.code === code)?.label ?? code;
 

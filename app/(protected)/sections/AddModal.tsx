@@ -35,7 +35,11 @@ import {
   GRADE_LEVEL_MAX,
   GRADE_LEVEL_MIN,
   isAlsSectionType,
+  isShsGrade,
   SECTION_TYPE_OPTIONS,
+  SHS_SPECIALIZATION_SUGGESTIONS,
+  SHS_STRANDS,
+  getTrackLabel,
 } from "@/lib/constants";
 import { formatRoomDimension } from "@/lib/utils/roomDimension";
 import {
@@ -79,6 +83,10 @@ const FormSchema = z.object({
     .transform((v) => (v == null || v === "" ? undefined : String(v))),
   max_students: z.number().optional(),
   is_active: z.boolean().default(true),
+  // SHS only. A strand is a curriculum, so a section follows exactly one —
+  // see migration 145. Blanked below when the grade level is not 11 or 12.
+  strand: z.string().optional(),
+  specialization: z.string().optional(),
 });
 
 type FormType = z.infer<typeof FormSchema>;
@@ -105,8 +113,16 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
       room_id: undefined,
       max_students: undefined,
       is_active: true,
+      strand: undefined,
+      specialization: undefined,
     },
   });
+
+  const watchedGradeLevel = form.watch("grade_level");
+  const watchedStrand = form.watch("strand");
+  const specializationSuggestions = watchedStrand
+    ? (SHS_SPECIALIZATION_SUGGESTIONS[watchedStrand] ?? [])
+    : [];
 
   useEffect(() => {
     const checkExistingData = async () => {
@@ -194,6 +210,12 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
         room_id: data.room_id || null,
         max_students: data.max_students || null,
         is_active: data.is_active,
+        // Migration 145's CHECK only allows these on grades 11-12, so a
+        // section moved off SHS must not keep a stale strand.
+        strand: isShsGrade(data.grade_level) ? data.strand || null : null,
+        specialization: isShsGrade(data.grade_level)
+          ? data.specialization || null
+          : null,
         ...(user?.school_id != null && { school_id: user.school_id }),
       };
 
@@ -296,6 +318,8 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
         room_id: editData?.room_id ?? undefined,
         max_students: editData?.max_students || undefined,
         is_active: editData?.is_active ?? true,
+        strand: editData?.strand ?? undefined,
+        specialization: editData?.specialization ?? undefined,
       });
     }
   }, [form, editData, isOpen]);
@@ -480,6 +504,94 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
                   </FormItem>
                 )}
               />
+
+              {/* Senior High only. A strand is a curriculum, so the section —
+                  not the learner — is where it is decided (migration 145).
+                  Recording it here is what makes the division's Track & Strand
+                  and SHS Specialization reports derive instead of being typed. */}
+              {isShsGrade(watchedGradeLevel) && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="strand"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">
+                          SHS Strand
+                        </FormLabel>
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            // Specializations are listed per strand, so a
+                            // leftover one would belong to the old strand.
+                            form.setValue("specialization", undefined);
+                          }}
+                          value={field.value ?? ""}
+                          disabled={isSubmitting}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Select strand" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {SHS_STRANDS.map((st) => (
+                              <SelectItem key={st.code} value={st.code}>
+                                {st.label} ({getTrackLabel(st.track)})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription className="text-xs">
+                          Feeds the division Track &amp; Strand report.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="specialization"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">
+                          Specialization
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            className="h-10"
+                            placeholder={
+                              specializationSuggestions.length > 0
+                                ? `e.g. ${specializationSuggestions[0]}`
+                                : "Optional"
+                            }
+                            list="shs-specialization-suggestions"
+                            value={field.value ?? ""}
+                            onChange={(e) =>
+                              field.onChange(e.target.value || undefined)
+                            }
+                            disabled={isSubmitting || !watchedStrand}
+                          />
+                        </FormControl>
+                        {/* Suggestions, not a closed list: TVL specializations
+                            are legion and schools legitimately add their own. */}
+                        <datalist id="shs-specialization-suggestions">
+                          {specializationSuggestions.map((sp) => (
+                            <option key={sp} value={sp} />
+                          ))}
+                        </datalist>
+                        <FormDescription className="text-xs">
+                          {watchedStrand
+                            ? "Feeds the SHS Specialization report. Leave blank if the strand has none."
+                            : "Choose a strand first."}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
 
               <FormField
                 control={form.control}
