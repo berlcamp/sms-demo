@@ -190,16 +190,23 @@ export default function Page() {
     return { schoolRows: sortedSchools, grades: sortedGrades, grandTotals };
   }, [rows]);
 
+  // The Submission badge describes where the figures came from, so it belongs
+  // only on the submission-backed categories. On the live categories the
+  // numbers come from enrollment records and the badge would be describing
+  // something else entirely — whether the school also filed the DepEd form,
+  // which is what /division/reports/schools/[id] is for.
   const exportRows = () =>
     schoolRows.map((s) => ({
       School: s.school_name,
-      Submission: s.status,
+      ...(isLive ? {} : { Submission: s.status }),
       Male: s.male,
       Female: s.female,
       Total: s.total,
     }));
 
-  const headers = ["School", "Submission", "Male", "Female", "Total"];
+  const headers = isLive
+    ? ["School", "Male", "Female", "Total"]
+    : ["School", "Submission", "Male", "Female", "Total"];
 
   const toggleExpand = (id: number) =>
     setExpanded((prev) => {
@@ -256,7 +263,7 @@ export default function Page() {
       title="Enrollment"
       description={
         isLive
-          ? "Per-school learner counts by grade level and sex, computed live from enrollment records. No school submission required — the Submission column only shows whether the school has also filed the DepEd form."
+          ? "Per-school learner counts by grade level and sex, computed live from enrollment records. No school submission required. To see which schools have filed the DepEd form, open a school."
           : "Per-school learner counts by grade level, category, and modality, as submitted by each school."
       }
       loading={loading}
@@ -327,7 +334,7 @@ export default function Page() {
               <TableRow>
                 <TableHead className="w-[40px]"></TableHead>
                 <TableHead>School</TableHead>
-                <TableHead>Submission</TableHead>
+                {!isLive && <TableHead>Submission</TableHead>}
                 <TableHead className="text-right">Male</TableHead>
                 <TableHead className="text-right">Female</TableHead>
                 <TableHead className="text-right">Total</TableHead>
@@ -361,7 +368,7 @@ export default function Page() {
                         {s.school_name}
                       </Link>
                     </TableCell>
-                    <TableCell>{statusBadge(s.status)}</TableCell>
+                    {!isLive && <TableCell>{statusBadge(s.status)}</TableCell>}
                     <TableCell className="text-right">{s.male}</TableCell>
                     <TableCell className="text-right">{s.female}</TableCell>
                     <TableCell className="text-right font-medium">
@@ -374,7 +381,7 @@ export default function Page() {
                       className="bg-muted/20"
                     >
                       <TableCell />
-                      <TableCell colSpan={5}>
+                      <TableCell colSpan={isLive ? 4 : 5}>
                         <Table>
                           <TableHeader>
                             <TableRow>
@@ -417,7 +424,7 @@ export default function Page() {
               <TableRow className="border-t-2 font-bold bg-muted/40">
                 <TableCell />
                 <TableCell>Division Total</TableCell>
-                <TableCell />
+                {!isLive && <TableCell />}
                 <TableCell className="text-right">{grandTotals.male}</TableCell>
                 <TableCell className="text-right">
                   {grandTotals.female}
