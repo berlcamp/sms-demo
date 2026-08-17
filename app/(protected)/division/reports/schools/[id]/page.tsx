@@ -76,10 +76,8 @@ interface Submission {
   submitted_at: string | null;
 }
 
-interface EnrollmentDetail {
+interface EnrollmentByGrade {
   grade_level: number;
-  category: string;
-  modality: string;
   male: number;
   female: number;
 }
@@ -112,7 +110,9 @@ export default function Page() {
   const [sy, setSy] = useState(getCurrentSchoolYear());
   const [school, setSchool] = useState<School | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [enrollmentRows, setEnrollmentRows] = useState<EnrollmentDetail[]>([]);
+  const [enrollmentByGrade, setEnrollmentByGrade] = useState<
+    EnrollmentByGrade[]
+  >([]);
   const [trackStrandRows, setTrackStrandRows] = useState<TrackStrandDetail[]>(
     [],
   );
@@ -144,21 +144,21 @@ export default function Page() {
       if (subErr) throw subErr;
       setSubmissions((subs as Submission[]) || []);
 
-      const submissionIds = (subs as Submission[])?.map((s) => s.id) ?? [];
-
-      // 3. Enrollment rows (all categories/modalities)
-      const enrollmentIds = (subs as Submission[])
-        ?.filter((s) => s.report_type === "enrollment")
-        .map((s) => s.id);
-      if (enrollmentIds && enrollmentIds.length > 0) {
-        const { data: er } = await supabase
-          .from("sms_report_enrollment_rows")
-          .select("grade_level, category, modality, male, female")
-          .in("submission_id", enrollmentIds);
-        setEnrollmentRows((er as EnrollmentDetail[]) ?? []);
-      } else {
-        setEnrollmentRows([]);
-      }
+      // 3. Enrollment by grade — derived live, not read from the submission.
+      //    Same function the school's own Autofill uses, so the division sees
+      //    what the school would see, whether or not it has filed the form.
+      const { data: live, error: liveErr } = await supabase.rpc(
+        "enrollment_autofill",
+        { p_school_id: id, p_school_year: sy, p_semester: null },
+      );
+      if (liveErr) throw liveErr;
+      setEnrollmentByGrade(
+        ((live as EnrollmentByGrade[]) ?? []).map((r) => ({
+          grade_level: Number(r.grade_level),
+          male: Number(r.male || 0),
+          female: Number(r.female || 0),
+        })),
+      );
 
       // 4. Track & Strand rows
       const trackStrandSubs = (subs as Submission[])?.filter(
@@ -205,11 +205,9 @@ export default function Page() {
         setTeachingSpecRows([]);
       }
 
-      if (submissionIds.length === 0) {
-        setEnrollmentRows([]);
-        setTrackStrandRows([]);
-        setTeachingSpecRows([]);
-      }
+      // No blanket reset when there are no submissions: enrollment by grade is
+      // derived above and must survive a school that has filed nothing. The
+      // submission-backed sections clear themselves in their own else branches.
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load");
     } finally {
@@ -228,20 +226,6 @@ export default function Page() {
     }
     return m;
   }, [submissions]);
-
-  const enrollmentByGrade = useMemo(() => {
-    const map = new Map<number, { male: number; female: number }>();
-    for (const r of enrollmentRows) {
-      if (r.category !== "enrollment" || r.modality !== "all") continue;
-      const prev = map.get(r.grade_level) ?? { male: 0, female: 0 };
-      prev.male += Number(r.male || 0);
-      prev.female += Number(r.female || 0);
-      map.set(r.grade_level, prev);
-    }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([grade_level, v]) => ({ grade_level, ...v }));
-  }, [enrollmentRows]);
 
   const statusBadge = (s: Submission | undefined) => {
     if (!s) return <Badge variant="outline">Not submitted</Badge>;
@@ -497,7 +481,7 @@ export default function Page() {
                 Enrollment by grade ({sy})
               </CardTitle>
               <CardDescription>
-                From submitted &quot;Enrollment (Total) / All&quot; rows.
+                Computed live from enrollment records — no submission required.
               </CardDescription>
             </CardHeader>
             <CardContent>
