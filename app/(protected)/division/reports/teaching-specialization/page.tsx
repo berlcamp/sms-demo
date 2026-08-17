@@ -39,6 +39,8 @@ interface Row {
   female: number;
   total: number;
   status: "draft" | "submitted" | "locked" | "missing";
+  /** Where this school's figures came from. */
+  source: "live" | "submitted";
 }
 
 export default function Page() {
@@ -52,17 +54,42 @@ export default function Page() {
     let isMounted = true;
     const fetch = async () => {
       setLoading(true);
-      const { data, error } = await supabase.rpc(
-        "division_teaching_specialization_summary",
-        { p_school_year: sy },
-      );
+      // sms_users holds who works here NOW — it has no school year — so the
+      // derived figures describe today's staff and can only stand in for the
+      // CURRENT school year. For any past year the submitted form is the more
+      // truthful record (migration 146).
+      const canDerive = sy === getCurrentSchoolYear();
+
+      const [liveRes, subRes] = await Promise.all([
+        canDerive
+          ? supabase.rpc("division_teaching_specialization_actual", {
+              p_school_year: sy,
+            })
+          : Promise.resolve({ data: null, error: null }),
+        supabase.rpc("division_teaching_specialization_summary", {
+          p_school_year: sy,
+        }),
+      ]);
       if (!isMounted) return;
-      if (error) {
-        toast.error(error.message);
-        setRows([]);
-      } else {
-        setRows((data as Row[]) || []);
+
+      // PGRST202 = migration 146 not applied yet; fall back entirely.
+      if (liveRes.error && liveRes.error.code !== "PGRST202") {
+        toast.error(liveRes.error.message);
       }
+      if (subRes.error) {
+        toast.error(subRes.error.message);
+      }
+
+      const live = ((liveRes.data as Row[] | null) || []).map((r) => ({
+        ...r,
+        source: "live" as const,
+      }));
+      const schoolsWithLive = new Set(live.map((r) => Number(r.school_id)));
+      const submitted = ((subRes.data as Row[]) || [])
+        .filter((r) => !schoolsWithLive.has(Number(r.school_id)))
+        .map((r) => ({ ...r, source: "submitted" as const }));
+
+      setRows([...live, ...submitted]);
       setLoading(false);
     };
     fetch();

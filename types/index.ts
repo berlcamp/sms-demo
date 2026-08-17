@@ -14,6 +14,8 @@ export interface User {
   type?: string;
   school_id?: string | null;
   staff_category_code?: string | null;
+  gender?: string | null; // staff sex, migration 146
+  learning_area?: string | null; // teaching specialization, migration 146
   is_active: boolean;
   created_at?: string;
 }
