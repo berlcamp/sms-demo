@@ -58,6 +58,20 @@ const CATEGORIES: { value: Category; label: string }[] = [
   { value: "fourps", label: "4Ps" },
 ];
 
+/**
+ * Categories `division_enrollment_actual` can derive (migrations 140, 144).
+ * Definitions match generateSf4.ts, so a school's own SF4 and the division's
+ * view of it cannot disagree; repeater follows migration 118.
+ */
+const LIVE_CATEGORIES = new Set<Category>([
+  "enrollment",
+  "transfer_in",
+  "transfer_out",
+  "dropout",
+  "promotee",
+  "repeater",
+]);
+
 const MODALITIES: { value: Modality; label: string }[] = [
   { value: "all", label: "All / Combined" },
   { value: "face_to_face", label: "Face-to-Face" },
@@ -96,12 +110,12 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
-  // Only "Enrollment (Total)" at modality "All" can be derived from live
-  // enrollment records — the same single combination the school-side autofill
-  // supports. Every other category (transfer in/out, dropout, promotee,
-  // repeater, balik-aral, 4Ps) and every specific modality has no operational
-  // source, so those still read what the school submitted.
-  const isLive = category === "enrollment" && modality === "all";
+  // Everything left out has no operational source: Balik-Aral and 4Ps are not
+  // recorded against a learner, and learning modality is not stored at all —
+  // those three keep reading what the school submitted.
+  const isLive = LIVE_CATEGORIES.has(category) && modality === "all";
+  const categoryLabel =
+    CATEGORIES.find((c) => c.value === category)?.label ?? category;
 
   useEffect(() => {
     let isMounted = true;
@@ -121,6 +135,7 @@ export default function Page() {
             p_school_year: sy,
             p_semester: null,
             p_school_type: schoolType === "all" ? null : schoolType,
+            p_category: category,
           })
         : await fetchSubmitted();
 
@@ -263,8 +278,12 @@ export default function Page() {
       title="Enrollment"
       description={
         isLive
-          ? "Per-school learner counts by grade level and sex, computed live from enrollment records. No school submission required. To see which schools have filed the DepEd form, open a school."
-          : "Per-school learner counts by grade level, category, and modality, as submitted by each school."
+          ? `Per-school ${categoryLabel.toLowerCase()} counts by grade level and sex, computed live from enrollment records. No school submission required. To see which schools have filed the DepEd form, open a school.`
+          : `Per-school ${categoryLabel.toLowerCase()} counts as submitted by each school. This combination has no operational source — ${
+              modality === "all"
+                ? "it is not recorded against a learner"
+                : "learning modality is not stored"
+            }, so it can only be typed by the school.`
       }
       loading={loading}
       recordCount={schoolRows.length}
