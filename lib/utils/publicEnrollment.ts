@@ -10,6 +10,34 @@ export interface PublicEnrollmentCount {
 }
 
 /**
+ * Grade levels a public page charts, lowest first.
+ *
+ * -1 is SNED (migration 035). It is a real grade level carrying real learners,
+ * so leaving it out of the bands while counting it in the total is what made
+ * the landing page, /learners and each school page disagree.
+ */
+export const PUBLIC_GRADE_LEVELS = [
+  -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+];
+
+/**
+ * Which band a grade level belongs to.
+ *
+ * SNED sits with Kindergarten on migration 035's own terms — "SNED behaves
+ * like Kindergarten; students promote to Grade 1" — which is also why the
+ * Elementary band starts at -1 rather than 0.
+ */
+export function gradeBand(
+  gradeLevel: number,
+): "kinder" | "elementary" | "juniorHigh" | "seniorHigh" | null {
+  if (gradeLevel === -1 || gradeLevel === 0) return "kinder";
+  if (gradeLevel >= 1 && gradeLevel <= 6) return "elementary";
+  if (gradeLevel >= 7 && gradeLevel <= 10) return "juniorHigh";
+  if (gradeLevel >= 11 && gradeLevel <= 12) return "seniorHigh";
+  return null;
+}
+
+/**
  * Enrollment lifecycle statuses that mean "this learner is on the roll".
  *
  * Copied verbatim from 072's `enrollment_autofill` so the public figures, a
@@ -43,24 +71,27 @@ interface FallbackRow {
  */
 export async function fetchPublicEnrollmentCounts(
   schoolYear: string,
+  schoolId?: number,
 ): Promise<PublicEnrollmentCount[]> {
   const { data, error } = await supabase.rpc("public_enrollment_counts", {
     p_school_year: schoolYear,
   });
 
   if (!error) {
-    return ((data as PublicEnrollmentCount[]) || []).map((r) => ({
-      school_id: Number(r.school_id),
-      grade_level: Number(r.grade_level),
-      male: Number(r.male || 0),
-      female: Number(r.female || 0),
-    }));
+    return ((data as PublicEnrollmentCount[]) || [])
+      .map((r) => ({
+        school_id: Number(r.school_id),
+        grade_level: Number(r.grade_level),
+        male: Number(r.male || 0),
+        female: Number(r.female || 0),
+      }))
+      .filter((r) => schoolId == null || r.school_id === schoolId);
   }
 
   // PGRST202 = no such function. Anything else is a real failure.
   if (error.code !== "PGRST202") throw error;
 
-  return fetchCountsClientSide(schoolYear);
+  return fetchCountsClientSide(schoolYear, schoolId);
 }
 
 /**
@@ -70,8 +101,9 @@ export async function fetchPublicEnrollmentCounts(
  */
 async function fetchCountsClientSide(
   schoolYear: string,
+  schoolId?: number,
 ): Promise<PublicEnrollmentCount[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from("sms_enrollments")
     .select(
       `
@@ -82,8 +114,14 @@ async function fetchCountsClientSide(
     `,
     )
     .eq("school_year", schoolYear)
-    .in("enrollment_status", ENROLLED_LIFECYCLE)
-    .or(EXCLUDE_TEST_SCHOOLS_OR);
+    .in("enrollment_status", ENROLLED_LIFECYCLE);
+
+  // Scoping to one school keeps the response far under the row cap.
+  query = schoolId == null
+    ? query.or(EXCLUDE_TEST_SCHOOLS_OR)
+    : query.eq("school_id", schoolId);
+
+  const { data, error } = await query;
 
   if (error) throw error;
 

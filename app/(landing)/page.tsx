@@ -4,7 +4,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getGradeLevelLabel } from "@/lib/constants";
 import { APP_NAME, ORG_FOOTER, ORG_NAME } from "@/lib/constants/branding";
 import { supabase } from "@/lib/supabase/client";
-import { fetchPublicEnrollmentCounts } from "@/lib/utils/publicEnrollment";
+import {
+  fetchPublicEnrollmentCounts,
+  gradeBand,
+  PUBLIC_GRADE_LEVELS,
+} from "@/lib/utils/publicEnrollment";
 import { ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -113,35 +117,35 @@ export default function LandingHomePage() {
       const elem = { male: 0, female: 0, total: 0 };
       const jhs = { male: 0, female: 0, total: 0 };
       const shs = { male: 0, female: 0, total: 0 };
-      const byGrade = Array.from({ length: 13 }, (_, i) => ({
-        grade: i,
-        count: 0,
-      }));
+      const byGrade = PUBLIC_GRADE_LEVELS.map((grade) => ({ grade, count: 0 }));
+      const byGradeIndex = new Map(byGrade.map((g) => [g.grade, g]));
 
       for (const c of counts) {
-        const gl = c.grade_level;
         const learners = c.male + c.female;
 
         male += c.male;
         female += c.female;
 
-        if (gl >= 0 && gl <= 6) {
-          elem.male += c.male;
-          elem.female += c.female;
-          elem.total += learners;
-        } else if (gl >= 7 && gl <= 10) {
-          jhs.male += c.male;
-          jhs.female += c.female;
-          jhs.total += learners;
-        } else if (gl >= 11 && gl <= 12) {
-          shs.male += c.male;
-          shs.female += c.female;
-          shs.total += learners;
+        // Elementary here is labelled "SNED / Kinder – Grade 6", so it takes
+        // both the kinder and elementary bands.
+        const band = gradeBand(c.grade_level);
+        const bucket =
+          band === "kinder" || band === "elementary"
+            ? elem
+            : band === "juniorHigh"
+              ? jhs
+              : band === "seniorHigh"
+                ? shs
+                : null;
+
+        if (bucket) {
+          bucket.male += c.male;
+          bucket.female += c.female;
+          bucket.total += learners;
         }
 
-        if (gl >= 0 && gl <= 12) {
-          byGrade[gl]!.count += learners;
-        }
+        const gradeEntry = byGradeIndex.get(c.grade_level);
+        if (gradeEntry) gradeEntry.count += learners;
       }
 
       setStats({
@@ -170,7 +174,7 @@ export default function LandingHomePage() {
       key: "elementary",
       no: "01",
       label: "Elementary",
-      range: "Kindergarten – Grade 6",
+      range: "SNED / Kinder – Grade 6",
       color: "var(--band-elem)",
       data: stats?.elementary ?? null,
     },
@@ -227,6 +231,13 @@ export default function LandingHomePage() {
 
   const share = (n: number) =>
     stats && stats.total > 0 ? (n / stats.total) * 100 : 0;
+
+  // Grade -1 is SNED (migration 035); it sits beside Kindergarten on the axis.
+  const gradeAxisLabel = (grade: number) => {
+    if (grade === -1) return "S";
+    if (grade === 0) return "K";
+    return String(grade);
+  };
 
   return (
     <div className="paper-ground paper-grain font-ui relative min-h-screen text-[var(--ink-2)]">
@@ -519,7 +530,7 @@ export default function LandingHomePage() {
 
           {loading ? (
             <div className="flex h-64 items-end gap-2 sm:gap-3">
-              {[62, 48, 74, 40, 86, 58, 70, 45, 80, 55, 66, 50, 38].map(
+              {[54, 62, 48, 74, 40, 86, 58, 70, 45, 80, 55, 66, 50, 38].map(
                 (pct, i) => (
                   <div key={i} className="flex-1">
                     <Skeleton
@@ -569,7 +580,7 @@ export default function LandingHomePage() {
                     key={g.grade}
                     className="font-data flex-1 text-center text-[10px] text-[var(--ink-3)]"
                   >
-                    {g.grade === 0 ? "K" : g.grade}
+                    {gradeAxisLabel(g.grade)}
                   </span>
                 ))}
               </div>

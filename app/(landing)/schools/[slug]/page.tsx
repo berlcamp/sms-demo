@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/lib/supabase/client";
 import {
+  fetchPublicEnrollmentCounts,
+  gradeBand,
+  PUBLIC_GRADE_LEVELS,
+} from "@/lib/utils/publicEnrollment";
+import {
   BookOpen,
   GraduationCap,
   LogIn,
@@ -109,32 +114,11 @@ export default function SchoolDetailPage() {
     if (!schoolDbId) return;
     setLoading(true);
     try {
-      const { data: enrollments, error } = await supabase
-        .from("sms_enrollments")
-        .select(
-          `
-          grade_level,
-          student:sms_students!sms_enrollments_student_id_fkey(gender)
-        `,
-        )
-        .eq("school_id", schoolDbId)
-        .eq("status", "approved")
-        .eq("school_year", schoolYear);
-
-      if (error) {
-        console.error("Enrollment fetch error:", error);
-        setStats(null);
-        return;
-      }
-
-      type EnrollmentRecord = {
-        grade_level: number;
-        student: { gender: string } | null;
-      };
-      const records = ((enrollments || []) as unknown[]).filter(
-        (e): e is EnrollmentRecord =>
-          e != null &&
-          typeof (e as { grade_level?: unknown }).grade_level === "number",
+      // schoolDbId is the sms_schools.id PK, typed string here but BIGINT in
+      // the database — the RPC keys on the number.
+      const counts = await fetchPublicEnrollmentCounts(
+        schoolYear,
+        Number(schoolDbId),
       );
 
       let male = 0;
@@ -142,38 +126,35 @@ export default function SchoolDetailPage() {
       const elem = { male: 0, female: 0, total: 0 };
       const jhs = { male: 0, female: 0, total: 0 };
       const shs = { male: 0, female: 0, total: 0 };
-      const byGrade = Array.from({ length: 13 }, (_, i) => ({
-        grade: i,
-        count: 0,
-      }));
+      const byGrade = PUBLIC_GRADE_LEVELS.map((grade) => ({ grade, count: 0 }));
+      const byGradeIndex = new Map(byGrade.map((g) => [g.grade, g]));
 
-      for (const r of records) {
-        const g = r.student?.gender?.toLowerCase() ?? "";
-        const gl = r.grade_level;
+      for (const c of counts) {
+        const learners = c.male + c.female;
 
-        if (g === "male") {
-          male++;
-        } else if (g === "female") {
-          female++;
+        male += c.male;
+        female += c.female;
+
+        // Elementary here is labelled "SNED / Kinder – Grade 6", so it takes
+        // both the kinder and elementary bands.
+        const band = gradeBand(c.grade_level);
+        const bucket =
+          band === "kinder" || band === "elementary"
+            ? elem
+            : band === "juniorHigh"
+              ? jhs
+              : band === "seniorHigh"
+                ? shs
+                : null;
+
+        if (bucket) {
+          bucket.male += c.male;
+          bucket.female += c.female;
+          bucket.total += learners;
         }
 
-        if (gl >= 0 && gl <= 6) {
-          if (g === "male") elem.male++;
-          else if (g === "female") elem.female++;
-          elem.total++;
-        } else if (gl >= 7 && gl <= 10) {
-          if (g === "male") jhs.male++;
-          else if (g === "female") jhs.female++;
-          jhs.total++;
-        } else if (gl >= 11 && gl <= 12) {
-          if (g === "male") shs.male++;
-          else if (g === "female") shs.female++;
-          shs.total++;
-        }
-
-        if (gl >= 0 && gl <= 12) {
-          byGrade[gl]!.count++;
-        }
+        const gradeEntry = byGradeIndex.get(c.grade_level);
+        if (gradeEntry) gradeEntry.count += learners;
       }
 
       setStats({
@@ -247,7 +228,7 @@ export default function SchoolDetailPage() {
       key: "elementary",
       icon: BookOpen,
       label: "Elementary",
-      sub: "Grades 1–6",
+      sub: "SNED / Kinder – Grade 6",
       iconBg: "bg-amber-50",
       iconColor: "text-amber-600",
       data: stats ? stats.elementary : null,
@@ -298,6 +279,12 @@ export default function SchoolDetailPage() {
       </div>
     );
   }
+
+  const gradeAxisLabel = (grade: number) => {
+    if (grade === -1) return "S";
+    if (grade === 0) return "K";
+    return String(grade);
+  };
 
   const gradeBarColor = (grade: number) => {
     if (grade <= 6) return "from-amber-400 to-orange-400";
@@ -477,7 +464,7 @@ export default function SchoolDetailPage() {
                 )}
               </div>
             ) : stats && stats.byGradeLevel.some((g) => g.count > 0) ? (
-              <div className="grid gap-2 sm:gap-3 items-end h-56 sm:h-64 [grid-template-columns:repeat(13,minmax(0,1fr))]">
+              <div className="grid gap-2 sm:gap-3 items-end h-56 sm:h-64 [grid-template-columns:repeat(14,minmax(0,1fr))]">
                 {stats.byGradeLevel.map((g) => {
                   const max = Math.max(
                     ...stats.byGradeLevel.map((x) => x.count),
@@ -498,7 +485,7 @@ export default function SchoolDetailPage() {
                         title={`${getGradeLevelLabel(g.grade)}: ${g.count} students`}
                       />
                       <span className="text-[10px] sm:text-xs font-semibold text-gray-400 group-hover:text-gray-700 transition-colors">
-                        {g.grade === 0 ? "K" : g.grade}
+                        {gradeAxisLabel(g.grade)}
                       </span>
                     </div>
                   );

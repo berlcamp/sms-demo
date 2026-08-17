@@ -19,7 +19,10 @@ import {
 import { ORG_NAME } from "@/lib/constants/branding";
 import { TEST_SCHOOL_ID_FILTER } from "@/lib/constants/landing";
 import { supabase } from "@/lib/supabase/client";
-import { fetchPublicEnrollmentCounts } from "@/lib/utils/publicEnrollment";
+import {
+  fetchPublicEnrollmentCounts,
+  gradeBand,
+} from "@/lib/utils/publicEnrollment";
 import { Calendar, GraduationCap } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -124,12 +127,12 @@ export default function LearnersPage() {
         }
         const c = countsBySchool.get(sid)!;
         const learners = e.male + e.female;
-        const gl = e.grade_level;
 
-        if (gl === 0) c.kinder += learners;
-        else if (gl >= 1 && gl <= 6) c.elem += learners;
-        else if (gl >= 7 && gl <= 10) c.jhs += learners;
-        else if (gl >= 11 && gl <= 12) c.shs += learners;
+        const band = gradeBand(e.grade_level);
+        if (band === "kinder") c.kinder += learners;
+        else if (band === "elementary") c.elem += learners;
+        else if (band === "juniorHigh") c.jhs += learners;
+        else if (band === "seniorHigh") c.shs += learners;
       }
 
       const result: SchoolLearnerRow[] = schools.map((s) => {
@@ -291,7 +294,7 @@ export default function LearnersPage() {
                   <TableHead className="label-data h-auto py-3 text-[var(--ink-3)]">
                     School Name
                   </TableHead>
-                  {["Kinder", "Elementary", "Junior High", "Senior High"].map(
+                  {["SNED / Kinder", "Elementary", "Junior High", "Senior High"].map(
                     (h) => (
                       <TableHead
                         key={h}
