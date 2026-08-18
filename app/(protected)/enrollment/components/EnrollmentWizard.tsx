@@ -53,6 +53,7 @@ import {
 import SNEDDisabilityStep from "./SNEDDisabilityStep";
 import StudentRecordStep from "./StudentRecordStep";
 import WizardStepIndicator from "./WizardStepIndicator";
+import { ethnicGroupToStored } from "@/lib/constants/ethnicGroups";
 
 const SENIOR_HIGH_GRADE_MIN = 11;
 const SENIOR_HIGH_GRADE_MAX = 12;
@@ -919,8 +920,7 @@ export default function EnrollmentWizard({
               date_of_birth: studentData.date_of_birth,
               gender: studentData.gender,
               mother_tongue: studentData.mother_tongue?.trim() || null,
-              ip_ethnic_group: studentData.ip_ethnic_group?.trim() || null,
-              ethnicity: studentData.ethnicity?.trim() || null,
+              ip_ethnic_group: ethnicGroupToStored(studentData.ip_ethnic_group),
               is_4ps: studentData.is_4ps ?? false,
               religion: studentData.religion?.trim() || null,
               purok: studentData.purok?.trim() || null,

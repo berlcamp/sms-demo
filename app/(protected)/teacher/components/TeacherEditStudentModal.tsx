@@ -37,6 +37,12 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { z } from "zod";
+import { EthnicGroupSelect } from "@/components/EthnicGroupSelect";
+import {
+  NOT_IP_OPTION_VALUE,
+  ethnicGroupToStored,
+  storedToEthnicGroup,
+} from "@/lib/constants/ethnicGroups";
 
 const ACCEPTED_DOC_TYPES = [".pdf", ".jpg", ".jpeg", ".png"];
 const ACCEPTED_DOC_MIME = [
@@ -71,7 +77,6 @@ const FormSchema = z.object({
   gender: z.enum(["male", "female"]),
   mother_tongue: z.string().optional(),
   ip_ethnic_group: z.string().optional(),
-  ethnicity: z.string().optional(),
   is_4ps: z.boolean(),
   religion: z.string().optional(),
   purok: z.string().optional(),
@@ -124,8 +129,7 @@ export const TeacherEditStudentModal = ({
       date_of_birth: "",
       gender: "male",
       mother_tongue: "",
-      ip_ethnic_group: "",
-      ethnicity: "",
+      ip_ethnic_group: NOT_IP_OPTION_VALUE,
       is_4ps: false,
       religion: "",
       purok: "",
@@ -166,8 +170,7 @@ export const TeacherEditStudentModal = ({
         date_of_birth: data.date_of_birth,
         gender: data.gender,
         mother_tongue: data.mother_tongue?.trim() || null,
-        ip_ethnic_group: data.ip_ethnic_group?.trim() || null,
-        ethnicity: data.ethnicity?.trim() || null,
+        ip_ethnic_group: ethnicGroupToStored(data.ip_ethnic_group),
         is_4ps: data.is_4ps,
         religion: data.religion?.trim() || null,
         purok: data.purok?.trim() || null,
@@ -300,8 +303,7 @@ export const TeacherEditStudentModal = ({
         date_of_birth: editData?.date_of_birth || "",
         gender: (editData?.gender as "male" | "female") || "male",
         mother_tongue: editData?.mother_tongue || "",
-        ip_ethnic_group: editData?.ip_ethnic_group || "",
-        ethnicity: editData?.ethnicity || "",
+        ip_ethnic_group: storedToEthnicGroup(editData?.ip_ethnic_group),
         is_4ps: editData?.is_4ps ?? false,
         religion: editData?.religion || "",
         purok: editData?.purok || "",
@@ -544,10 +546,9 @@ export const TeacherEditStudentModal = ({
                       IP (Ethnic Group)
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Ethnic group"
-                        className="h-10"
-                        {...field}
+                      <EthnicGroupSelect
+                        value={field.value}
+                        onChange={field.onChange}
                         disabled={isSubmitting}
                       />
                     </FormControl>
@@ -567,27 +568,6 @@ export const TeacherEditStudentModal = ({
                     <FormControl>
                       <Input
                         placeholder="Religion"
-                        className="h-10"
-                        {...field}
-                        disabled={isSubmitting}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="ethnicity"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium">
-                      Ethnicity
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Ethnicity"
                         className="h-10"
                         {...field}
                         disabled={isSubmitting}

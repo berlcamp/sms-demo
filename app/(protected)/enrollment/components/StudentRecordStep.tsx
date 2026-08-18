@@ -24,6 +24,7 @@ import { UseFormReturn } from "react-hook-form";
 import { LrnBoxInput } from "@/components/LrnBoxInput";
 import TransfereeInfoCard from "./TransfereeInfoCard";
 import { StudentFormType } from "./enrollmentWizardSchema";
+import { EthnicGroupSelect } from "@/components/EthnicGroupSelect";
 
 interface Props {
   form: UseFormReturn<StudentFormType>;
@@ -237,23 +238,11 @@ export default function StudentRecordStep({
                 <FormItem>
                   <FormLabel className="text-sm font-medium">IP (Ethnic Group)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ethnic group" className="h-10" {...field} disabled={disabled} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            {/* Ethnicity and 4Ps are SF1 fields that migration 114 added to
-                the learner record but only the Students screen ever asked for.
-                Asking at enrolment is what makes the division's 4Ps figure
-                mean anything — see that migration's note on the default. */}
-            <FormField
-              control={form.control}
-              name="ethnicity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-medium">Ethnicity</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ethnicity" className="h-10" {...field} disabled={disabled} />
+                    <EthnicGroupSelect
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={disabled}
+                    />
                   </FormControl>
                 </FormItem>
               )}

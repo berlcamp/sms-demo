@@ -433,7 +433,13 @@ export interface Student {
   date_of_birth: string; // Date
   gender: Gender;
   mother_tongue?: string | null;
+  /** Indigenous Peoples group; blank/null for a non-IP learner. Picked from
+   *  lib/constants/ethnicGroups.ts and the sole input to the IPEd report's
+   *  IPs / Non-IPs split. */
   ip_ethnic_group?: string | null;
+  /** @deprecated Migration 114's free-text ethnicity. No longer asked for on
+   *  any form and read by nothing — the column is kept so existing values are
+   *  not lost, but do not add new consumers. Use ip_ethnic_group. */
   ethnicity?: string | null;
   is_4ps?: boolean | null;
   religion?: string | null;

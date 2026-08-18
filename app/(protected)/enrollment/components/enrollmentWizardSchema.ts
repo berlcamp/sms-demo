@@ -1,5 +1,6 @@
 import { GRADE_LEVEL_MAX, GRADE_LEVEL_MIN } from "@/lib/constants";
 import { z } from "zod";
+import { NOT_IP_OPTION_VALUE } from "@/lib/constants/ethnicGroups";
 
 const SENIOR_HIGH_GRADE_MIN = 11;
 const SENIOR_HIGH_GRADE_MAX = 12;
@@ -14,10 +15,12 @@ export const StudentFormSchema = z.object({
   date_of_birth: z.string().min(1, "Date of birth is required"),
   gender: z.enum(["male", "female"]),
   mother_tongue: z.string().optional(),
+  // The Indigenous Peoples group, picked from lib/constants/ethnicGroups.ts.
+  // Migration 114's free-text `ethnicity` used to sit beside this; it was
+  // dropped from every form because nothing in the system ever read it, and
+  // having two lookalike boxes was moving the IPEd return. The column is
+  // untouched — it is simply no longer asked for.
   ip_ethnic_group: z.string().optional(),
-  // Migration 114. Distinct from ip_ethnic_group, which is the Indigenous
-  // Peoples group and blank for everyone else.
-  ethnicity: z.string().optional(),
   is_4ps: z.boolean().default(false),
   religion: z.string().optional(),
   purok: z.string().optional(),
@@ -51,7 +54,6 @@ export const ExistingStudentSchema = z.object({
   gender: z.enum(["male", "female"]).optional(),
   mother_tongue: z.string().optional(),
   ip_ethnic_group: z.string().optional(),
-  ethnicity: z.string().optional(),
   is_4ps: z.boolean().optional(),
   religion: z.string().optional(),
   purok: z.string().optional(),
@@ -114,8 +116,7 @@ export const STUDENT_FORM_DEFAULTS: StudentFormType = {
   date_of_birth: "",
   gender: "male",
   mother_tongue: "",
-  ip_ethnic_group: "",
-  ethnicity: "",
+  ip_ethnic_group: NOT_IP_OPTION_VALUE,
   is_4ps: false,
   religion: "",
   purok: "",

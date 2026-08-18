@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { isIpLearner } from "@/lib/constants/ethnicGroups";
 
 interface ModalProps {
   isOpen: boolean;
@@ -236,10 +237,12 @@ export const ViewModal = ({
               </div>
               <div>
                 <label className="text-xs text-muted-foreground">
-                  Ethnicity
+                  IP (Ethnic Group)
                 </label>
                 <p className="text-sm font-medium">
-                  {student.ethnicity || "—"}
+                  {isIpLearner(student.ip_ethnic_group)
+                    ? student.ip_ethnic_group
+                    : "Not IP"}
                 </p>
               </div>
               <div>
