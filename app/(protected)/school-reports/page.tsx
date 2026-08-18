@@ -14,8 +14,10 @@ import {
   Clock,
   FileBarChart,
   Gauge,
+  HeartHandshake,
   LayoutGrid,
   MapPin,
+  Sprout,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -65,6 +67,20 @@ const REPORTS = [
       "Barangay-level mapping of school-age children, in-school and out-of-school.",
     href: "/school-reports/child-mapping",
     icon: MapPin,
+  },
+  {
+    title: "IPEd Program Data Set",
+    description:
+      "Indigenous Peoples Education returns per school and fiscal year — school type, IP enrolment by band, the teacher and school head orientation matrices, and the division's activities and issues.",
+    href: "/school-reports/iped",
+    icon: Sprout,
+  },
+  {
+    title: "PWD and 4P's Beneficiary Data Set",
+    description:
+      "Learners with a disability, 4Ps beneficiaries and IP learners by sex — per school and per grade level.",
+    href: "/school-reports/pwd-4ps",
+    icon: HeartHandshake,
   },
 ];
 

@@ -13,11 +13,13 @@ import {
   ClipboardList,
   FileBarChart,
   GraduationCap,
+  HeartHandshake,
   Landmark,
   LayoutGrid,
   LucideIcon,
   Ruler,
   School as SchoolIcon,
+  Sprout,
   UserCog,
   Users,
 } from "lucide-react";
@@ -95,6 +97,25 @@ const reports: ReportCard[] = [
       "Shortage or surplus based on enrollment vs available classrooms.",
     href: "/division/reports/classroom-needs",
     icon: Ruler,
+    available: true,
+  },
+  // The division-wide cut of the two IPEd workbook forms: one row per school,
+  // the shape the printed form takes. The school-level cut of the same two
+  // reports lives under /school-reports.
+  {
+    title: "IPEd Program Data Set",
+    description:
+      "IP enrolment by band, the orientation matrices and the division's activities and issues, per school and fiscal year.",
+    href: "/division/reports/iped",
+    icon: Sprout,
+    available: true,
+  },
+  {
+    title: "PWD and 4P's Beneficiary Data Set",
+    description:
+      "Learners with a disability, 4Ps beneficiaries and IP learners by sex — per school and per grade level.",
+    href: "/division/reports/pwd-4ps",
+    icon: HeartHandshake,
     available: true,
   },
 ];

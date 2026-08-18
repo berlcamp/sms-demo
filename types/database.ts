@@ -2219,3 +2219,86 @@ export interface CotRating {
   created_at: string;
   updated_at: string;
 }
+
+// ============================================================================
+// IPEd PROGRAM DATA SET / PWD & 4Ps BENEFICIARY DATA SET (migration 149)
+// ============================================================================
+
+/**
+ * The half of the IPEd Program Data Set the system cannot derive — one row per
+ * (school, fiscal year). Every field is nullable: a school that has answered
+ * nothing has no row, and the form prints blank.
+ */
+export interface IpedReportEntry {
+  id: string;
+  school_id: string;
+  fiscal_year: number;
+  /** NULL = unanswered, reported under neither the A nor the B half. */
+  implementing_iped: boolean | null;
+  teachers_ip_male: number | null;
+  teachers_non_ip_male: number | null;
+  teachers_ip_female: number | null;
+  teachers_non_ip_female: number | null;
+  teachers_oriented_a_elem: number | null;
+  teachers_oriented_a_is: number | null;
+  teachers_oriented_a_jhs: number | null;
+  teachers_oriented_a_shs: number | null;
+  teachers_oriented_b_elem: number | null;
+  teachers_oriented_b_is: number | null;
+  teachers_oriented_b_jhs: number | null;
+  teachers_oriented_b_shs: number | null;
+  heads_oriented_a_elem: number | null;
+  heads_oriented_a_is: number | null;
+  heads_oriented_a_jhs: number | null;
+  heads_oriented_a_shs: number | null;
+  heads_oriented_b_elem: number | null;
+  heads_oriented_b_is: number | null;
+  heads_oriented_b_jhs: number | null;
+  heads_oriented_b_shs: number | null;
+  contextualized_resources: number | null;
+  major_activities: string | null;
+  cab_officers: string | null;
+  major_issues: string | null;
+  updated_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One row per school from the `iped_program_facts` RPC. */
+export interface IpedProgramFact {
+  school_id: string;
+  school_name: string;
+  district: string | null;
+  school_type: string | null;
+  has_ip_learners: boolean;
+  teachers_male: number;
+  teachers_female: number;
+  enrolment_elem_ip: number;
+  enrolment_elem_non_ip: number;
+  enrolment_is_ip: number;
+  enrolment_is_non_ip: number;
+  enrolment_jhs_ip: number;
+  enrolment_jhs_non_ip: number;
+  enrolment_shs_ip: number;
+  enrolment_shs_non_ip: number;
+}
+
+/**
+ * One row per (school, grade level) from the `pwd_fourps_facts` RPC. A school
+ * with no enrolment for the year returns a single row with `grade_level` null
+ * and zeroes, so it still prints on the per-school sheet.
+ */
+export interface PwdFourPsFact {
+  school_id: string;
+  school_name: string;
+  district: string | null;
+  school_type: string | null;
+  grade_level: number | null;
+  enrolment: number;
+  pwd_male: number;
+  pwd_female: number;
+  fourps_male: number;
+  fourps_female: number;
+  ip_male: number;
+  ip_female: number;
+}
