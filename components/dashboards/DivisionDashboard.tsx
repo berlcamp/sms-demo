@@ -14,6 +14,11 @@ import {
   ENROLLMENT_STATUS_LABELS,
   getCurrentSchoolYear,
 } from "@/lib/dashboard-utils";
+import { TEST_SCHOOL_ID_FILTER } from "@/lib/constants/landing";
+import {
+  PUBLIC_GRADE_LEVELS,
+  fetchPublicEnrollmentCounts,
+} from "@/lib/utils/publicEnrollment";
 import { useAppSelector } from "@/lib/redux/hook";
 import {
   Building2,
@@ -78,8 +83,28 @@ const STAFF_PIE_COLORS = [
 ];
 
 function getGradeLabel(grade: number): string {
+  if (grade === -1) return "SNED";
   if (grade === 0) return "K";
   return `G${grade}`;
+}
+
+/**
+ * Lifecycle statuses charted in the status breakdown. Counted one exact query
+ * each rather than by tallying rows in the browser — see fetchDashboardData.
+ */
+const LIFECYCLE_STATUSES = Object.keys(ENROLLMENT_STATUS_COLORS);
+
+/** School-level staff types the pie breaks down; division roles are excluded. */
+const STAFF_TYPES = Object.keys(STAFF_TYPE_LABELS);
+
+/** Head-count query for school-level staff, shared by the total and each slice. */
+function buildStaffQuery() {
+  return supabase
+    .from("sms_users")
+    .select("*", { count: "exact", head: true })
+    .neq("type", "division_admin")
+    .neq("type", "division_type")
+    .neq("type", "super admin");
 }
 
 export function DivisionDashboard() {
@@ -105,57 +130,92 @@ export function DivisionDashboard() {
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
+      // Test schools are dropped here as well. TEST_SCHOOL_IDS' own comment
+      // says they belong in no dashboard statistic, and the learner counts
+      // below come from an RPC that already excludes them (141) — leaving them
+      // in the school count would make this card describe a different set of
+      // schools from every other figure on the page.
       const { count: schoolsCnt } = await supabase
         .from("sms_schools")
         .select("*", { count: "exact", head: true })
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .not("id", "in", TEST_SCHOOL_ID_FILTER);
       setSchoolsCount(schoolsCnt ?? 0);
 
       const { data: schools } = await supabase
         .from("sms_schools")
         .select("id, name")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .not("id", "in", TEST_SCHOOL_ID_FILTER);
       const schoolMap = new Map<string, string>();
       schools?.forEach((s) => schoolMap.set(String(s.id), s.name));
 
-      const { data: users, count: usersCnt } = await supabase
-        .from("sms_users")
-        .select("school_id, type", { count: "exact" })
-        .neq("type", "division_admin")
-        .neq("type", "division_type")
-        .neq("type", "super admin");
-      setUsersCount(usersCnt ?? 0);
+      // Exact counts, one query per staff type. The previous version pulled the
+      // rows and tallied them, so the pie was built from the first 1000 staff
+      // and undercounted every type once the division passed that — the same
+      // row-cap trap as the learner figures. `usersCnt` was always exact, which
+      // is why the headline total and the pie disagreed with each other.
+      const staffCount = async (
+        apply: (
+          q: ReturnType<typeof buildStaffQuery>,
+        ) => ReturnType<typeof buildStaffQuery>,
+      ) => (await apply(buildStaffQuery())).count ?? 0;
 
-      const typeCounts = new Map<string, number>();
-      users?.forEach((u) => {
-        const t = u.type || "other";
-        typeCounts.set(t, (typeCounts.get(t) || 0) + 1);
-      });
-      const byType: StaffByType[] = Array.from(typeCounts.entries())
-        .map(([type, count]) => ({
-          type,
-          count,
-          label: STAFF_TYPE_LABELS[type] || type,
-        }))
-        .sort((a, b) => b.count - a.count);
-      setStaffByType(byType);
+      const [usersCnt, ...typeCounts] = await Promise.all([
+        staffCount((q) => q),
+        ...STAFF_TYPES.map((type) =>
+          staffCount((q) => q.eq("type", type)),
+        ),
+      ]);
+      setUsersCount(usersCnt);
 
-      const { data: students } = await supabase
-        .from("sms_students")
-        .select("school_id");
-      setStudentsCount(students?.length ?? 0);
-      const studentCountsBySchool = new Map<string, number>();
-      students?.forEach((s) => {
-        if (s.school_id) {
-          const sid = String(s.school_id);
-          studentCountsBySchool.set(
-            sid,
-            (studentCountsBySchool.get(sid) || 0) + 1,
-          );
-        }
-      });
+      const known: StaffByType[] = STAFF_TYPES.map((type, i) => ({
+        type,
+        count: typeCounts[i] ?? 0,
+        label: STAFF_TYPE_LABELS[type] || type,
+      })).filter((t) => t.count > 0);
+
+      // Anything not in the label map still exists and still belongs in the
+      // total, so it is shown rather than silently dropped.
+      const other = usersCnt - known.reduce((sum, t) => sum + t.count, 0);
+      setStaffByType(
+        [
+          ...known,
+          ...(other > 0 ? [{ type: "other", count: other, label: "Other" }] : []),
+        ].sort((a, b) => b.count - a.count),
+      );
+
+      // Learner figures come from the SAME source as the public landing page —
+      // `public_enrollment_counts` (migration 141) via fetchPublicEnrollmentCounts
+      // — so the two cannot disagree. Reading sms_students here was wrong four
+      // ways at once: the response is subject to PostgREST's row cap so
+      // `students.length` silently stopped at 1000 while the division has
+      // ~12,000 learners; it counted every learner ever recorded rather than
+      // those enrolled this school year; it keyed on sms_students.school_id
+      // rather than where the learner actually is (migration 109); and it
+      // included the test schools the landing page drops.
+      const counts = await fetchPublicEnrollmentCounts(schoolYear);
+
+      const countsBySchool = new Map<string, number>();
+      const gradeTotals = new Map<number, { Male: number; Female: number }>();
+      let learnerTotal = 0;
+
+      for (const c of counts) {
+        const learners = c.male + c.female;
+        learnerTotal += learners;
+
+        const sid = String(c.school_id);
+        countsBySchool.set(sid, (countsBySchool.get(sid) || 0) + learners);
+
+        const bucket = gradeTotals.get(c.grade_level) ?? { Male: 0, Female: 0 };
+        bucket.Male += c.male;
+        bucket.Female += c.female;
+        gradeTotals.set(c.grade_level, bucket);
+      }
+
+      setStudentsCount(learnerTotal);
       setStudentsBySchool(
-        Array.from(studentCountsBySchool.entries())
+        Array.from(countsBySchool.entries())
           .map(([schoolId, count]) => ({
             school_id: schoolId,
             school_name: schoolMap.get(schoolId) || schoolId,
@@ -163,45 +223,52 @@ export function DivisionDashboard() {
           }))
           .sort((a, b) => b.count - a.count),
       );
+      // PUBLIC_GRADE_LEVELS, not 0..12: SNED (-1) carries real learners and the
+      // landing page charts it, so omitting it here was a second way the two
+      // disagreed.
+      setEnrollmentByGrade(
+        PUBLIC_GRADE_LEVELS.map((grade) => ({
+          grade,
+          label: getGradeLabel(grade),
+          Male: gradeTotals.get(grade)?.Male ?? 0,
+          Female: gradeTotals.get(grade)?.Female ?? 0,
+        })),
+      );
 
       const { count: sectionsCnt } = await supabase
         .from("sms_sections")
         .select("*", { count: "exact", head: true })
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .not("school_id", "in", TEST_SCHOOL_ID_FILTER);
       setSectionsCount(sectionsCnt ?? 0);
 
-      const { data: enrollments } = await supabase
-        .from("sms_enrollments")
-        .select(
-          "grade_level, enrollment_status, student:sms_students!sms_enrollments_student_id_fkey(gender)",
-        )
-        .eq("status", "approved")
-        .eq("school_year", schoolYear);
-
-      const statusCounts = new Map<string, number>();
-      const gradeBuckets = Array.from({ length: 13 }, (_, i) => ({
-        grade: i,
-        label: getGradeLabel(i),
-        Male: 0,
-        Female: 0,
-      }));
-      enrollments?.forEach((e) => {
-        const ls = e.enrollment_status || "active";
-        statusCounts.set(ls, (statusCounts.get(ls) || 0) + 1);
-
-        const idx = e.grade_level;
-        if (idx >= 0 && idx < 13) {
-          const gender = (e.student as { gender?: string } | null)?.gender;
-          if (gender === "male") gradeBuckets[idx]!.Male++;
-          else if (gender === "female") gradeBuckets[idx]!.Female++;
-        }
-      });
+      // One exact count per lifecycle status. Tallying the rows in the browser
+      // capped this at 1000 like everything else above, so the pie showed the
+      // shape of the first page of enrolments rather than of the division.
+      //
+      // `semester is null or semester = 1` collapses an SHS learner's two
+      // semester rows (migration 028) to one head. The residual trade is a
+      // learner who enrolled only in the second semester, who is not counted
+      // — unavoidable from a row count, and the reason the learner totals
+      // above go through the RPC instead.
+      const statusResults = await Promise.all(
+        LIFECYCLE_STATUSES.map(async (status) => {
+          const { count } = await supabase
+            .from("sms_enrollments")
+            .select("*", { count: "exact", head: true })
+            .eq("status", "approved")
+            .eq("school_year", schoolYear)
+            .eq("enrollment_status", status)
+            .or("semester.is.null,semester.eq.1")
+            .not("school_id", "in", TEST_SCHOOL_ID_FILTER);
+          return { status, count: count ?? 0 };
+        }),
+      );
       setEnrollmentByStatus(
-        Array.from(statusCounts.entries())
-          .map(([status, count]) => ({ status, count }))
+        statusResults
+          .filter((s) => s.count > 0)
           .sort((a, b) => b.count - a.count),
       );
-      setEnrollmentByGrade(gradeBuckets);
 
       const { data: form137 } = await supabase
         .from("sms_requests")

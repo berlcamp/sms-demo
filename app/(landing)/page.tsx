@@ -12,6 +12,7 @@ import {
 import { ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { getCurrentSchoolYear } from "@/lib/utils/schoolYear";
 
 interface Band {
   male: number;
@@ -29,13 +30,16 @@ interface EnrollmentStats {
   byGradeLevel: { grade: number; count: number }[];
 }
 
-function getDefaultSchoolYear(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const startYear = month >= 6 ? year : year - 1;
-  return `${startYear}-${startYear + 1}`;
-}
+/**
+ * The school year both this page and the staff dashboards report against.
+ *
+ * There were three private copies of this, each rolling over in July while
+ * `getCurrentSchoolYear` — which every protected page uses — rolls over in
+ * June. Through the whole of June the landing pages therefore named a
+ * different school year from /home, and the same learners were counted
+ * against different years on the two screens. One definition now.
+ */
+const getDefaultSchoolYear = getCurrentSchoolYear;
 
 function getSchoolYearOptions(): string[] {
   const now = new Date();

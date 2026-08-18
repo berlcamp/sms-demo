@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { getCurrentSchoolYear } from "@/lib/utils/schoolYear";
 
 interface EnrollmentStats {
   male: number;
@@ -41,13 +42,7 @@ interface SchoolInfo {
   district: string | null;
 }
 
-function getDefaultSchoolYear(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const startYear = month >= 6 ? year : year - 1;
-  return `${startYear}-${startYear + 1}`;
-}
+const getDefaultSchoolYear = getCurrentSchoolYear;
 
 function SchoolPageSignIn({ href }: { href: string }) {
   return (
