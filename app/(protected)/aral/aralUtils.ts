@@ -10,6 +10,10 @@
  * ids share the same grade), so the grade level is a single number and no
  * material join is needed. Each candidate carries the section_id of the record it
  * came from, so an enrollment can be recorded under the learner's own section.
+ *
+ * Every fetcher reads one row per assessment RECORD, and a learner has one
+ * record per material (grade + language + set) — so the lists are collapsed to
+ * one row per learner by dedupeCandidates before they leave fetchCandidates.
  */
 import {
   crlaTier,
@@ -37,13 +41,39 @@ export interface AralCandidate {
   suggested_start_grade: number | null;
 }
 
-/** Merge candidate lists, keeping the higher (priority) tier on collisions. */
-function mergeCandidates(lists: AralCandidate[][]): AralCandidate[] {
+/**
+ * Collapse candidate lists to ONE row per learner, keeping the most severe
+ * result.
+ *
+ * A learner legitimately holds several assessment records per phase / school
+ * year, because every records table is keyed per MATERIAL and a material is one
+ * grade level + LANGUAGE + set: CRLA (English / Filipino / Mother Tongue, 083),
+ * Phil-IRI (English / Filipino, 084/090) and RMA (085) all behave this way. A
+ * learner screened in both languages therefore produces two rows, and the table
+ * showed them as two learners — with a different tier and suggested start each,
+ * since the resolvers ran per record. Worse, `sms_aral_enrollments` is
+ * `UNIQUE (student_id, program, school_year)` (097), so enrolling a selection
+ * containing a repeat failed the whole insert and nobody was enrolled.
+ *
+ * Severity order: `priority` outranks `secondary`; on a tie the LOWER
+ * suggested-start grade wins (the deeper gap is the one the intervention has to
+ * close). A null start grade carries no information and loses to a known one.
+ */
+function isMoreSevere(c: AralCandidate, existing: AralCandidate): boolean {
+  if (c.tier !== existing.tier) return c.tier === "priority";
+  const a = c.suggested_start_grade;
+  const b = existing.suggested_start_grade;
+  if (a == null) return false;
+  if (b == null) return true;
+  return a < b;
+}
+
+function dedupeCandidates(...lists: AralCandidate[][]): AralCandidate[] {
   const byStudent = new Map<string, AralCandidate>();
   for (const list of lists) {
     for (const c of list) {
       const existing = byStudent.get(c.student_id);
-      if (!existing || (existing.tier === "secondary" && c.tier === "priority")) {
+      if (!existing || isMoreSevere(c, existing)) {
         byStudent.set(c.student_id, c);
       }
     }
@@ -316,19 +346,27 @@ export async function fetchCandidates(
   grade: number,
 ): Promise<AralCandidate[]> {
   if (sectionIds.length === 0) return [];
+  // Every branch is deduped here rather than inside each fetcher: a learner is
+  // one candidate however many materials/languages they were assessed in.
   switch (program) {
     case "reading":
-      return fetchReadingCandidates(sectionIds, schoolYear, phase, grade);
+      return dedupeCandidates(
+        await fetchReadingCandidates(sectionIds, schoolYear, phase, grade),
+      );
     case "mathematics":
-      return fetchMathCandidates(sectionIds, schoolYear, phase, grade);
+      return dedupeCandidates(
+        await fetchMathCandidates(sectionIds, schoolYear, phase, grade),
+      );
     case "science":
-      return fetchScienceCandidates(sectionIds, schoolYear, phase, grade);
+      return dedupeCandidates(
+        await fetchScienceCandidates(sectionIds, schoolYear, phase, grade),
+      );
     case "summer": {
       const [reading, math] = await Promise.all([
         fetchReadingCandidates(sectionIds, schoolYear, "EoSY", grade),
         fetchMathCandidates(sectionIds, schoolYear, "EoSY", grade),
       ]);
-      return mergeCandidates([reading, math]);
+      return dedupeCandidates(reading, math);
     }
     default:
       return [];
