@@ -5,9 +5,14 @@
  *
  * Sheets 2 and 3 of the division's IPEd workbook: the same three learner
  * categories (PWD, 4Ps, IP) counted by sex, once per school and once per grade
- * level. Nothing here is typed — `pwd_fourps_facts` (migration 149) returns the
- * (school, grade level) cross-product and both tables are folded from that one
- * result, so the two sheets can never disagree.
+ * level. Nothing here is typed — `pwd_fourps_facts` (migrations 149 and 150)
+ * returns the (school, grade level) cross-product and both tables are folded
+ * from that one result, so the two sheets can never disagree.
+ *
+ * PWD comes from the adviser's LSEN tagging (migration 119) excluding the
+ * Gifted Learner group, plus the older SNED disability records (048) — see
+ * migration 150 for why the exclusion is on the tag CATEGORY rather than on
+ * the code list.
  *
  * Rendered at two routes: `/division/reports/pwd-4ps` (every school, the shape
  * the printed form takes) and `/school-reports/pwd-4ps` (the signed-in school
@@ -306,10 +311,14 @@ export function PwdFourPsDataSet({ scope }: { scope: ReportScope }) {
       <Card className="border-0 shadow-lg">
         <CardHeader className="pb-0">
           <CardDescription>
-            PWD is read from the SNED disability records, which only the
-            enrolment wizard&apos;s SNED branch writes — a learner with a
-            disability enrolled in a regular grade has no record yet and is not
-            counted here.
+            A learner counts as PWD if they carry any Classification / Type of
+            LSEN tag outside the{" "}
+            <span className="font-medium">Gifted Learner</span> group — whether
+            diagnosed or observed as a manifestation — or a SNED disability
+            record. Tags are read from any school year, since a disability does
+            not lapse because the adviser has not re-tagged, and parent consent
+            is not required: it governs SNED enrolment, not whether the learner
+            has a disability.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 pt-6">
