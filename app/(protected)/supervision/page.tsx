@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useStaffModuleAccess } from "@/hooks/useStaffModuleAccess";
 import {
+  formatFocusList,
   SCHEDULE_STATUS_LABELS,
   SUPERVISION_TERMS,
 } from "@/lib/constants/supervision";
@@ -190,8 +191,8 @@ export default function Page() {
         pre_conference_at: fromDatetimeLocal(values.pre_conference_at),
         observation_at: fromDatetimeLocal(values.observation_at),
         observation_end_at: fromDatetimeLocal(values.observation_end_at),
-        focus_kra: values.focus_kra || null,
-        focus_indicator: values.focus_indicator || null,
+        focus_kra: formatFocusList(values.focus_kra) || null,
+        focus_indicator: formatFocusList(values.focus_indicator) || null,
         lesson_plan_path: values.lesson_plan_path || null,
         lesson_plan_name: values.lesson_plan_name || null,
         notes: values.notes || null,

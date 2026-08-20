@@ -4,7 +4,8 @@
  */
 import {
   CAREER_STAGES,
-  indicatorText,
+  indicatorLabels,
+  parseFocusList,
   SUPERVISION_TYPE_LABELS,
   termLabel,
   type CareerStage,
@@ -168,6 +169,8 @@ export function scheduleToCalendarEvent(
   context: ScheduleEventContext,
 ): CalendarEvent {
   const stage = CAREER_STAGES[schedule.career_stage as CareerStage];
+  const focusKras = parseFocusList(schedule.focus_kra);
+  const focusIndicators = indicatorLabels(schedule.focus_indicator);
   const lines = [
     `Teacher observed: ${context.teacherName}`,
     `Type: ${SUPERVISION_TYPE_LABELS[schedule.supervision_type]}`,
@@ -176,9 +179,11 @@ export function scheduleToCalendarEvent(
     context.observerNames.length
       ? `Observer/s: ${context.observerNames.join(", ")}`
       : "",
-    schedule.focus_kra ? `Focus KRA: ${schedule.focus_kra}` : "",
-    schedule.focus_indicator
-      ? `Focus indicator: ${schedule.focus_indicator} — ${indicatorText(schedule.focus_indicator)}`
+    focusKras.length
+      ? `Focus KRA${focusKras.length > 1 ? "s" : ""}: ${focusKras.join("; ")}`
+      : "",
+    focusIndicators.length
+      ? `Focus indicator${focusIndicators.length > 1 ? "s" : ""}: ${focusIndicators.join("; ")}`
       : "",
     stage ? `COT scale: ${stage.minRating}–${stage.maxRating} (${stage.formLabel})` : "",
     schedule.pre_conference_at

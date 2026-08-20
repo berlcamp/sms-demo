@@ -27,6 +27,7 @@ import {
   cotIndicators,
   kraForIndicator,
   MAX_OBSERVERS_PER_OBSERVATION,
+  parseFocusList,
   RPMS_KRAS,
   suggestCareerStage,
   SUPERVISION_TERMS,
@@ -74,8 +75,9 @@ export interface ScheduleFormValues {
   pre_conference_at: string;
   observation_at: string;
   observation_end_at: string;
-  focus_kra: string;
-  focus_indicator: string;
+  /** Several KRAs / indicators may be the focus of one observation. */
+  focus_kra: string[];
+  focus_indicator: string[];
   /** Storage object path under supervision-lesson-plans/, or "" when unattached. */
   lesson_plan_path: string;
   lesson_plan_name: string;
@@ -137,8 +139,8 @@ function blankValues(): ScheduleFormValues {
     pre_conference_at: "",
     observation_at: "",
     observation_end_at: "",
-    focus_kra: "",
-    focus_indicator: "",
+    focus_kra: [],
+    focus_indicator: [],
     lesson_plan_path: "",
     lesson_plan_name: "",
     notes: "",
@@ -258,8 +260,8 @@ export function ScheduleModal({
         pre_conference_at: toDatetimeLocal(s.pre_conference_at),
         observation_at: toDatetimeLocal(s.observation_at),
         observation_end_at: toDatetimeLocal(s.observation_end_at),
-        focus_kra: s.focus_kra ?? "",
-        focus_indicator: s.focus_indicator ?? "",
+        focus_kra: parseFocusList(s.focus_kra),
+        focus_indicator: parseFocusList(s.focus_indicator),
         lesson_plan_path: s.lesson_plan_path ?? "",
         lesson_plan_name: s.lesson_plan_name ?? "",
         notes: s.notes ?? "",
@@ -317,13 +319,37 @@ export function ScheduleModal({
     }));
   };
 
-  /** Choosing a focus indicator fills the KRA it belongs to, if still blank. */
-  const onIndicatorChange = (code: string) => {
+  const toggleKra = (label: string) =>
     setValues((prev) => ({
       ...prev,
-      focus_indicator: code,
-      focus_kra: prev.focus_kra || (kraForIndicator(code)?.label ?? ""),
+      focus_kra: prev.focus_kra.includes(label)
+        ? prev.focus_kra.filter((k) => k !== label)
+        : [...prev.focus_kra, label],
     }));
+
+  /**
+   * Ticking a focus indicator also ticks the KRA it belongs to. Unticking one
+   * leaves the KRA alone — another indicator may still sit under it, and the
+   * KRA can be chosen on its own.
+   */
+  const toggleIndicator = (code: string) => {
+    setValues((prev) => {
+      if (prev.focus_indicator.includes(code)) {
+        return {
+          ...prev,
+          focus_indicator: prev.focus_indicator.filter((c) => c !== code),
+        };
+      }
+      const kra = kraForIndicator(code)?.label;
+      return {
+        ...prev,
+        focus_indicator: [...prev.focus_indicator, code],
+        focus_kra:
+          kra && !prev.focus_kra.includes(kra)
+            ? [...prev.focus_kra, kra]
+            : prev.focus_kra,
+      };
+    });
   };
 
   /**
@@ -636,45 +662,52 @@ export function ScheduleModal({
           </Section>
 
           <Section title="Focus" icon={Paperclip}>
-            <Field label="Focus KRA">
-              <Select
-                value={values.focus_kra || "none"}
-                onValueChange={(v) => set("focus_kra", v === "none" ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select KRA" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Not specified</SelectItem>
-                  {RPMS_KRAS.map((k) => (
-                    <SelectItem key={k.key} value={k.label}>
-                      {k.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <Field
+              label="Focus KRA/s"
+              description={
+                values.focus_kra.length === 0
+                  ? "Optional — tick every KRA the observation focuses on."
+                  : undefined
+              }
+            >
+              <div className="grid gap-2 rounded-md border p-3">
+                {RPMS_KRAS.map((k) => (
+                  <label
+                    key={k.key}
+                    className="flex cursor-pointer items-start gap-2 text-sm"
+                  >
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={values.focus_kra.includes(k.label)}
+                      onChange={() => toggleKra(k.label)}
+                    />
+                    <span>{k.label}</span>
+                  </label>
+                ))}
+              </div>
             </Field>
 
             <Field
-              label="Focus indicator"
-              description={`The COT indicator set for S.Y. ${schoolYear}.`}
+              label="Focus indicator/s"
+              description={`The COT indicator set for S.Y. ${schoolYear}. Ticking one also ticks the KRA it belongs to.`}
             >
-              <Select
-                value={values.focus_indicator || "none"}
-                onValueChange={(v) => onIndicatorChange(v === "none" ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select indicator" />
-                </SelectTrigger>
-                <SelectContent className="max-w-[32rem]">
-                  <SelectItem value="none">Not specified</SelectItem>
-                  {indicators.map((ind) => (
-                    <SelectItem key={ind.code} value={ind.code}>
-                      {ind.code} — {ind.text}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid gap-2 rounded-md border p-3">
+                {indicators.map((ind) => (
+                  <label
+                    key={ind.code}
+                    className="flex cursor-pointer items-start gap-2 text-sm"
+                  >
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={values.focus_indicator.includes(ind.code)}
+                      onChange={() => toggleIndicator(ind.code)}
+                    />
+                    <span>
+                      <span className="font-medium">{ind.code}</span> — {ind.text}
+                    </span>
+                  </label>
+                ))}
+              </div>
             </Field>
 
             <Field

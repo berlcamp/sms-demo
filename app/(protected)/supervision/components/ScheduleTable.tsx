@@ -12,6 +12,7 @@ import {
 import {
   CAREER_STAGES,
   indicatorText,
+  parseFocusList,
   needsAgreementForm,
   SCHEDULE_STATUS_LABELS,
   SUPERVISION_TYPE_LABELS,
@@ -203,6 +204,8 @@ function ScheduleRow({
     .map((o) => staffById.get(String(o.user_id))?.name ?? "")
     .filter(Boolean);
   const stage = CAREER_STAGES[schedule.career_stage as CareerStage];
+  const focusKras = parseFocusList(schedule.focus_kra);
+  const focusIndicators = parseFocusList(schedule.focus_indicator);
   const isApproved =
     schedule.status === "approved" || schedule.status === "completed";
   const progress = cotProgress(bundle);
@@ -496,15 +499,24 @@ function ScheduleRow({
                     ? `${stage.formLabel} · levels ${stage.minRating}–${stage.maxRating}, “Not Observed” scores ${stage.notObserved}`
                     : schedule.career_stage}
                 </Detail>
-                {schedule.focus_kra && (
-                  <Detail label="Focus KRA" wide>
-                    {schedule.focus_kra}
+                {focusKras.length > 0 && (
+                  <Detail
+                    label={`Focus KRA${focusKras.length > 1 ? "s" : ""}`}
+                    wide
+                  >
+                    {focusKras.join("; ")}
                   </Detail>
                 )}
-                {schedule.focus_indicator && (
-                  <Detail label="Focus indicator" wide>
-                    {schedule.focus_indicator} —{" "}
-                    {indicatorText(schedule.focus_indicator)}
+                {focusIndicators.length > 0 && (
+                  <Detail
+                    label={`Focus indicator${focusIndicators.length > 1 ? "s" : ""}`}
+                    wide
+                  >
+                    {focusIndicators.map((code) => (
+                      <span key={code} className="block">
+                        {code} — {indicatorText(code)}
+                      </span>
+                    ))}
                   </Detail>
                 )}
                 {schedule.lesson_plan_path && (

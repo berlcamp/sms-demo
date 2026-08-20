@@ -12,7 +12,8 @@
  */
 import {
   CAREER_STAGES,
-  indicatorText,
+  indicatorLabels,
+  parseFocusList,
   SUPERVISION_TYPE_LABELS,
   termLabel,
   termMonths,
@@ -247,9 +248,10 @@ export function generateSupervisoryPlanSlip(
   params: SupervisoryPlanSlipParams,
 ): void {
   const stage = CAREER_STAGES[params.careerStage];
-  const focus = params.focusIndicator
-    ? `${params.focusIndicator} — ${indicatorText(params.focusIndicator)}`
-    : "";
+  // Both may hold several entries (stored pipe-delimited); each prints on its
+  // own line so the slip reads the way the paper form is filled in.
+  const kras = parseFocusList(params.focusKra);
+  const indicators = indicatorLabels(params.focusIndicator);
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -279,8 +281,8 @@ ${header(params.schoolName, params.schoolAddress)}
   <tr><th>Grade and Section of Class for Observation</th><td>${esc(params.classLabel) || "&nbsp;"}</td></tr>
   <tr><th>Date and Time of Pre-Conference</th><td>${esc(params.preConference) || "&nbsp;"}</td></tr>
   <tr><th>Date and Time of Actual Observation</th><td>${esc(params.observation) || "&nbsp;"}</td></tr>
-  <tr><th>Focus KRA</th><td>${esc(params.focusKra) || "&nbsp;"}</td></tr>
-  <tr><th>Focus Indicator</th><td>${esc(focus) || "&nbsp;"}</td></tr>
+  <tr><th>Focus KRA</th><td>${kras.map((k) => esc(k)).join("<br>") || "&nbsp;"}</td></tr>
+  <tr><th>Focus Indicator</th><td>${indicators.map((i) => esc(i)).join("<br>") || "&nbsp;"}</td></tr>
   <tr><th>Observer/s</th><td>${esc((params.observers ?? []).join(", ")) || "&nbsp;"}</td></tr>
   <tr><th>COT Rating Scale</th><td>${stage.minRating} &ndash; ${stage.maxRating} (${esc(stage.formLabel)})</td></tr>
 </table>

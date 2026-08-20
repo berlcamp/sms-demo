@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   CAREER_STAGES,
   indicatorText,
+  parseFocusList,
   SCHEDULE_STATUS_LABELS,
   SUPERVISION_TYPE_LABELS,
   termLabel,
@@ -81,6 +82,8 @@ export function ScheduleCard({
     .map((o) => staffById.get(String(o.user_id))?.name ?? "")
     .filter(Boolean);
   const stage = CAREER_STAGES[schedule.career_stage as CareerStage];
+  const focusKras = parseFocusList(schedule.focus_kra);
+  const focusIndicators = parseFocusList(schedule.focus_indicator);
   const isApproved = schedule.status === "approved" || schedule.status === "completed";
 
   const eventContext = { teacherName, observerNames, schoolName };
@@ -212,17 +215,27 @@ export function ScheduleCard({
             {formatSlot(schedule.observation_at)}
           </dd>
         </div>
-        {schedule.focus_kra && (
+        {focusKras.length > 0 && (
           <div className="sm:col-span-2">
-            <dt className="inline font-medium">Focus KRA: </dt>
-            <dd className="inline text-muted-foreground">{schedule.focus_kra}</dd>
+            <dt className="inline font-medium">
+              Focus KRA{focusKras.length > 1 ? "s" : ""}:{" "}
+            </dt>
+            <dd className="inline text-muted-foreground">
+              {focusKras.join("; ")}
+            </dd>
           </div>
         )}
-        {schedule.focus_indicator && (
+        {focusIndicators.length > 0 && (
           <div className="sm:col-span-2">
-            <dt className="inline font-medium">Focus indicator: </dt>
+            <dt className="inline font-medium">
+              Focus indicator{focusIndicators.length > 1 ? "s" : ""}:{" "}
+            </dt>
             <dd className="inline text-muted-foreground">
-              {schedule.focus_indicator} — {indicatorText(schedule.focus_indicator)}
+              {focusIndicators.map((code) => (
+                <span key={code} className="block">
+                  {code} — {indicatorText(code)}
+                </span>
+              ))}
             </dd>
           </div>
         )}

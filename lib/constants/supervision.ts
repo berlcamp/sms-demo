@@ -413,6 +413,41 @@ export function kraForIndicator(code: string): KraSpec | undefined {
 }
 
 // ============================================================================
+// FOCUS OF THE OBSERVATION
+// ============================================================================
+
+/**
+ * An observation may focus on several KRAs and several indicators, but 121
+ * stores each as a single TEXT column. They are kept as a delimited list in
+ * that one column rather than widened to an array: every row written before
+ * this holds one bare value with no delimiter, and `parseFocusList` reads it
+ * back as a one-item list, so no stored slot and no signed slip changes.
+ *
+ * The delimiter is a pipe, not a comma — a KRA label carries commas of its own
+ * ("KRA 3: Curriculum and Planning, Assessment and Reporting").
+ */
+export const FOCUS_SEPARATOR = " | ";
+
+/** The stored KRA / indicator column read back as the list it represents. */
+export function parseFocusList(value: string | null | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split("|")
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+/** The list written back to the column; "" when nothing was chosen. */
+export function formatFocusList(values: string[]): string {
+  return values.filter(Boolean).join(FOCUS_SEPARATOR);
+}
+
+/** Stored indicator codes rendered as "code — statement", one per code. */
+export function indicatorLabels(value: string | null | undefined): string[] {
+  return parseFocusList(value).map((code) => `${code} — ${indicatorText(code)}`);
+}
+
+// ============================================================================
 // WORKFLOW LABELS
 // ============================================================================
 
