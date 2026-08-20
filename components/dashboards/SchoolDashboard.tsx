@@ -40,7 +40,6 @@ import {
   Clock,
   FileText,
   GraduationCap,
-  Layers,
   LayoutGrid,
   UserCheck,
   Users,
@@ -66,6 +65,8 @@ interface SectionEnrollment {
   sectionName: string;
   grade: number;
   count: number;
+  male: number;
+  female: number;
 }
 
 interface StaffBreakdown {
@@ -89,9 +90,6 @@ export function SchoolDashboard() {
   const [form137Status, setForm137Status] = useState<Form137Status[]>([]);
   const [sectionEnrollment, setSectionEnrollment] = useState<
     SectionEnrollment[]
-  >([]);
-  const [sectionsByGrade, setSectionsByGrade] = useState<
-    { grade: number; count: number }[]
   >([]);
   const [teacherLoads, setTeacherLoads] = useState<TeacherLoad[]>([]);
   const [loadsOutsideStaff, setLoadsOutsideStaff] = useState(0);
@@ -153,6 +151,10 @@ export function SchoolDashboard() {
 
       const statusCounts = new Map<string, number>();
       const sectionEnrollCounts = new Map<string, number>();
+      // Per-section sex split. A learner whose sex is unrecorded counts in
+      // `sectionEnrollCounts` but in neither column, so male + female may fall
+      // short of the total — that gap is the un-encoded sex, not a lost learner.
+      const sectionSexCounts = new Map<string, { male: number; female: number }>();
       const enrolledStudentIds = new Set<string>();
       const gradeCounts = Array.from({ length: 13 }, (_, i) => ({
         grade: i,
@@ -166,14 +168,19 @@ export function SchoolDashboard() {
 
           if (e.student_id) enrolledStudentIds.add(String(e.student_id));
 
+          const gender = (e.student as { gender?: string } | null)?.gender;
+
           if (e.section_id) {
             const sid = String(e.section_id);
             sectionEnrollCounts.set(sid, (sectionEnrollCounts.get(sid) || 0) + 1);
+            const sex = sectionSexCounts.get(sid) ?? { male: 0, female: 0 };
+            if (gender === "male") sex.male++;
+            else if (gender === "female") sex.female++;
+            sectionSexCounts.set(sid, sex);
           }
 
           const idx = e.grade_level;
           if (idx >= 0 && idx < 13) {
-            const gender = (e.student as { gender?: string } | null)?.gender;
             if (gender === "male") gradeCounts[idx]!.male++;
             else if (gender === "female") gradeCounts[idx]!.female++;
           }
@@ -202,7 +209,7 @@ export function SchoolDashboard() {
           .sort((a, b) => b.count - a.count),
       );
 
-      // Sections (current SY) → sections-per-grade, enrollment-per-section, advisers
+      // Sections (current SY) → enrollment-per-section, advisers
       const { data: sectionsData } = await supabase
         .from("sms_sections")
         .select("id, name, grade_level, section_adviser_id")
@@ -212,13 +219,11 @@ export function SchoolDashboard() {
         .order("grade_level", { ascending: true })
         .order("name", { ascending: true });
 
-      const secByGrade = new Map<number, number>();
       const adviserIds = new Set<string>();
       // Sections advised per teacher → advisorship load (60 min each).
       const advisoryCountByTeacher = new Map<string, number>();
       const secEnroll: SectionEnrollment[] = [];
       sectionsData?.forEach((s) => {
-        secByGrade.set(s.grade_level, (secByGrade.get(s.grade_level) || 0) + 1);
         if (s.section_adviser_id) {
           const aid = String(s.section_adviser_id);
           adviserIds.add(aid);
@@ -227,18 +232,16 @@ export function SchoolDashboard() {
             (advisoryCountByTeacher.get(aid) || 0) + 1,
           );
         }
+        const sex = sectionSexCounts.get(String(s.id)) ?? { male: 0, female: 0 };
         secEnroll.push({
           sectionId: String(s.id),
           sectionName: s.name,
           grade: s.grade_level,
           count: sectionEnrollCounts.get(String(s.id)) || 0,
+          male: sex.male,
+          female: sex.female,
         });
       });
-      setSectionsByGrade(
-        Array.from(secByGrade.entries())
-          .map(([grade, count]) => ({ grade, count }))
-          .sort((a, b) => a.grade - b.grade),
-      );
       setSectionEnrollment(secEnroll);
 
       // Staff → composition (teaching / non-teaching / school head / asst. head)
@@ -316,11 +319,6 @@ export function SchoolDashboard() {
     1,
   );
   const totalForm137 = form137Status.reduce((s, f) => s + f.count, 0);
-  const totalSections = sectionsByGrade.reduce((s, g) => s + g.count, 0);
-  const maxSectionsPerGrade = Math.max(
-    ...sectionsByGrade.map((g) => g.count),
-    1,
-  );
   const totalStaff =
     staffBreakdown.teaching +
     staffBreakdown.nonTeaching +
@@ -332,6 +330,15 @@ export function SchoolDashboard() {
     (acc[s.grade] ??= []).push(s);
     return acc;
   }, {});
+  // Sex split across every section — the school-wide footer of the by-sex card.
+  const sectionSexTotals = sectionEnrollment.reduce(
+    (acc, s) => ({
+      male: acc.male + s.male,
+      female: acc.female + s.female,
+      total: acc.total + s.count,
+    }),
+    { male: 0, female: 0, total: 0 },
+  );
   // School head, admin, registrar have similar dashboard access
   const hasSchoolManagementAccess =
     user?.type === "school_head" ||
@@ -782,104 +789,96 @@ export function SchoolDashboard() {
             </Card>
           </div>
 
-          {/* Sections per grade + Enrollment per section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="overflow-hidden border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Layers className="h-5 w-5" />
-                  Sections per Grade Level
-                </CardTitle>
-                <CardDescription>
-                  SY {schoolYear} — {loading ? "—" : `${totalSections} sections`}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <Skeleton key={i} className="h-6 w-full" />
-                    ))}
-                  </div>
-                ) : sectionsByGrade.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {sectionsByGrade.map((g) => (
-                      <div key={g.grade} className="flex items-center gap-3">
-                        <span className="text-xs font-medium text-muted-foreground w-24 flex-shrink-0">
-                          {getGradeLevelLabel(g.grade)}
-                        </span>
-                        <div className="flex-1 h-5 rounded bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded bg-violet-500/70"
-                            style={{
-                              width: `${(g.count / maxSectionsPerGrade) * 100}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="text-sm font-semibold w-6 text-right">
-                          {g.count}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground py-8 text-center">
-                    No sections for SY {schoolYear}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="overflow-hidden border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <ClipboardList className="h-5 w-5" />
-                  Enrollment per Section
-                </CardTitle>
-                <CardDescription>
-                  SY {schoolYear} — Enrollees grouped by grade & section
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <Skeleton key={i} className="h-6 w-full" />
-                    ))}
-                  </div>
-                ) : sectionEnrollment.length > 0 ? (
-                  <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
-                    {Object.entries(sectionGroups).map(([grade, sections]) => (
+          {/* Enrollment per section, split by sex */}
+          <Card className="overflow-hidden border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Users className="h-5 w-5" />
+                Enrollment per Section by Sex
+              </CardTitle>
+              <CardDescription>
+                SY {schoolYear} —{" "}
+                {loading
+                  ? "—"
+                  : `${sectionSexTotals.male} male, ${sectionSexTotals.female} female across ${sectionEnrollment.length} sections`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Skeleton key={i} className="h-8 w-full" />
+                  ))}
+                </div>
+              ) : sectionEnrollment.length > 0 ? (
+                <div className="space-y-5 max-h-96 overflow-y-auto pr-1">
+                  {Object.entries(sectionGroups).map(([grade, sections]) => {
+                    const gradeMale = sections.reduce((s, x) => s + x.male, 0);
+                    const gradeFemale = sections.reduce(
+                      (s, x) => s + x.female,
+                      0,
+                    );
+                    const gradeTotal = sections.reduce(
+                      (s, x) => s + x.count,
+                      0,
+                    );
+                    return (
                       <div key={grade}>
-                        <p className="text-xs font-semibold text-muted-foreground mb-1.5">
-                          {getGradeLevelLabel(Number(grade))}
-                        </p>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground">
+                            {getGradeLevelLabel(Number(grade))}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            M {gradeMale} · F {gradeFemale} · Total{" "}
+                            {gradeTotal}
+                          </p>
+                        </div>
                         <div className="space-y-1">
                           {sections.map((s) => (
                             <div
                               key={s.sectionId}
-                              className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-muted/50"
+                              className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-muted/50"
                             >
-                              <span className="text-sm truncate">
+                              <span className="text-sm truncate flex-1">
                                 {s.sectionName}
                               </span>
-                              <span className="text-sm font-semibold ml-2 flex-shrink-0">
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 flex-shrink-0">
+                                M {s.male}
+                              </span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-pink-500/10 text-pink-600 dark:text-pink-400 flex-shrink-0">
+                                F {s.female}
+                              </span>
+                              <span className="text-sm font-semibold w-10 text-right flex-shrink-0">
                                 {s.count}
                               </span>
                             </div>
                           ))}
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
+                  <div className="flex items-center gap-2 py-2 px-3 rounded-lg border-t pt-3">
+                    <span className="text-sm font-semibold flex-1">
+                      All sections
+                    </span>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 flex-shrink-0">
+                      M {sectionSexTotals.male}
+                    </span>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-pink-500/10 text-pink-600 dark:text-pink-400 flex-shrink-0">
+                      F {sectionSexTotals.female}
+                    </span>
+                    <span className="text-sm font-bold w-10 text-right flex-shrink-0">
+                      {sectionSexTotals.total}
+                    </span>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground py-8 text-center">
-                    No sections for SY {schoolYear}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-8 text-center">
+                  No sections for SY {schoolYear}
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Teaching load per teacher per day */}
           <Card className="overflow-hidden border-0 shadow-lg">

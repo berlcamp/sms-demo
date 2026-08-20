@@ -86,19 +86,76 @@ export async function generateSectionStudentsPrint(
           ? "Kindergarten"
           : `Grade ${gradeLevel}`;
 
-    let rows = "";
-    students.forEach((s, idx) => {
-      const fullName =
-        `${s.last_name}, ${s.first_name} ${s.middle_name || ""} ${s.suffix || ""}`.trim();
-      const gender = s.gender === "male" ? "M" : "F";
-      rows += `<tr>
+    // Split by sex, per the DepEd convention of listing males then females with
+    // a count under each. A learner whose sex is unrecorded lands in neither
+    // column, so they get their own trailing group rather than being dropped
+    // silently or guessed into one of the two.
+    const males = students.filter((s) => s.gender === "male");
+    const females = students.filter((s) => s.gender === "female");
+    const unspecified = students.filter(
+      (s) => s.gender !== "male" && s.gender !== "female",
+    );
+
+    const escapeHtml = (value: string) =>
+      value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    const fullNameOf = (s: (typeof students)[number]) =>
+      `${s.last_name}, ${s.first_name} ${s.middle_name || ""} ${s.suffix || ""}`
+        .replace(/\s+/g, " ")
+        .trim();
+
+    // One table per sex. Numbering restarts at 1 in each group and the group's
+    // own count closes it, so each list stands on its own when read on paper.
+    const buildGroupTable = (
+      label: string,
+      group: typeof students,
+    ): string => {
+      const rows = group
+        .map(
+          (s, idx) => `<tr>
         <td class="text-center">${idx + 1}</td>
-        <td>${s.lrn}</td>
-        <td>${fullName}</td>
-        <td class="text-center">${gender}</td>
+        <td>${escapeHtml(s.lrn || "")}</td>
+        <td>${escapeHtml(fullNameOf(s))}</td>
         <td class="text-center">${formatDate(s.date_of_birth)}</td>
-      </tr>`;
-    });
+      </tr>`,
+        )
+        .join("");
+
+      return `<table class="form-table">
+    <thead>
+      <tr>
+        <th colspan="4" class="group-header">${label}</th>
+      </tr>
+      <tr>
+        <th style="width:40px">No.</th>
+        <th style="width:120px">LRN</th>
+        <th>Name (Last, First, Middle)</th>
+        <th style="width:100px" class="text-center">Date of Birth</th>
+      </tr>
+    </thead>
+    <tbody>${
+      rows ||
+      `<tr><td colspan="4" class="text-center">No learners enrolled</td></tr>`
+    }</tbody>
+    <tfoot>
+      <tr class="group-total">
+        <td colspan="3" style="text-align:right">Total ${label}</td>
+        <td class="text-center">${group.length}</td>
+      </tr>
+    </tfoot>
+  </table>`;
+    };
+
+    const groupTables = [
+      buildGroupTable("Male", males),
+      buildGroupTable("Female", females),
+      ...(unspecified.length > 0
+        ? [buildGroupTable("Sex Not Indicated", unspecified)]
+        : []),
+    ].join("\n  ");
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -121,10 +178,12 @@ export async function generateSectionStudentsPrint(
     .form-table { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 15px; }
     .form-table th, .form-table td { border: 1px solid #000; padding: 4px 6px; }
     .form-table th { background-color: #f0f0f0; font-weight: bold; }
+    .group-header { text-align: left; text-transform: uppercase; letter-spacing: 0.5px; background-color: #e0e0e0; }
+    .group-total td { font-weight: bold; background-color: #f0f0f0; }
     .text-center { text-align: center; }
     .total-row { font-weight: bold; margin-top: 8px; font-size: 10pt; }
     ${DEPED_HEADER_LOGOS_STYLES}
-    @media print { body { print-color-adjust: exact; } }
+    @media print { body { print-color-adjust: exact; } .form-table { page-break-inside: auto; } tr { page-break-inside: avoid; } thead { display: table-header-group; } }
   </style>
 </head>
 <body>
@@ -141,19 +200,14 @@ export async function generateSectionStudentsPrint(
     <strong>Grade Level:</strong> ${gradeLabel} &nbsp;&nbsp;
     <strong>Adviser:</strong> ${adviserName || "N/A"}
   </div>
-  <table class="form-table">
-    <thead>
-      <tr>
-        <th style="width:40px">No.</th>
-        <th style="width:120px">LRN</th>
-        <th>Name (Last, First, Middle)</th>
-        <th style="width:50px" class="text-center">Sex</th>
-        <th style="width:100px" class="text-center">Date of Birth</th>
-      </tr>
-    </thead>
-    <tbody>${rows || "<tr><td colspan='5' class='text-center'>No learners enrolled</td></tr>"}</tbody>
-  </table>
-  <div class="total-row">Total: ${students.length} student(s)</div>
+  ${groupTables}
+  <div class="total-row">
+    Total Male: ${males.length} &nbsp;&nbsp; Total Female: ${females.length}${
+      unspecified.length > 0
+        ? ` &nbsp;&nbsp; Sex Not Indicated: ${unspecified.length}`
+        : ""
+    } &nbsp;&nbsp; Grand Total: ${students.length} student(s)
+  </div>
 </body>
 </html>`;
 
