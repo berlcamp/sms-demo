@@ -1,5 +1,10 @@
 import { buildDepEdHeaderWithLogos, DEPED_HEADER_LOGOS_STYLES, printHTMLContent } from "@/lib/pdf/utils";
 import { supabase } from "@/lib/supabase/client";
+import {
+  buildCardSubjectRows,
+  computeGeneralAverage,
+  type MapehSourceRow,
+} from "@/lib/utils/mapeh";
 
 export interface Sf9Params {
   schoolId: string;
@@ -76,14 +81,22 @@ export async function generateSf9Print(params: Sf9Params): Promise<void> {
       .order("grading_period");
 
     const subjectIds = [...new Set((grades || []).map((g) => g.subject_id))];
-    const subjectMap = new Map<string, { name: string; is_madrasah: boolean }>();
+    const subjectMap = new Map<
+      string,
+      { name: string; code: string | null; is_madrasah: boolean; mapeh_component: string | null }
+    >();
     if (subjectIds.length > 0) {
       const { data: subjects } = await supabase
         .from("sms_subjects")
-        .select("id, name, is_madrasah")
+        .select("id, code, name, is_madrasah, mapeh_component")
         .in("id", subjectIds);
       (subjects || []).forEach((s) =>
-        subjectMap.set(String(s.id), { name: s.name || "—", is_madrasah: !!s.is_madrasah }),
+        subjectMap.set(String(s.id), {
+          name: s.name || "—",
+          code: s.code ?? null,
+          is_madrasah: !!s.is_madrasah,
+          mapeh_component: s.mapeh_component ?? null,
+        }),
       );
     }
 
@@ -97,10 +110,7 @@ export async function generateSf9Print(params: Sf9Params): Promise<void> {
       adviserName = adviser?.name || "";
     }
 
-    const subjectsMap = new Map<
-      string,
-      { name: string; is_madrasah: boolean; q1: number | null; q2: number | null; q3: number | null; q4: number | null }
-    >();
+    const subjectsMap = new Map<string, MapehSourceRow>();
 
     (grades || []).forEach((g) => {
       const subjId = String(g.subject_id);
@@ -108,7 +118,9 @@ export async function generateSf9Print(params: Sf9Params): Promise<void> {
         const info = subjectMap.get(subjId);
         subjectsMap.set(subjId, {
           name: info?.name || "—",
+          code: info?.code ?? null,
           is_madrasah: info?.is_madrasah ?? false,
+          mapeh_component: info?.mapeh_component ?? null,
           q1: null,
           q2: null,
           q3: null,
@@ -122,48 +134,29 @@ export async function generateSf9Print(params: Sf9Params): Promise<void> {
       if (g.grading_period === 4) row.q4 = g.grade;
     });
 
+    // Tagged MAPEH components fold into one computed parent row counting once
+    // toward the general average, with the components indented beneath it
+    // (migration 153). Shared with the report card so the two forms cannot
+    // disagree about the same learner's average.
+    const cardRows = buildCardSubjectRows(Array.from(subjectsMap.values()));
+
     let rows = "";
-    const subjectRows = Array.from(subjectsMap.values());
-    subjectRows.forEach((row) => {
-      const q1 = row.q1 != null ? Math.round(row.q1) : "";
-      const q2 = row.q2 != null ? Math.round(row.q2) : "";
-      const q3 = row.q3 != null ? Math.round(row.q3) : "";
-      const q4 = row.q4 != null ? Math.round(row.q4) : "";
-      const all = [row.q1, row.q2, row.q3, row.q4].filter(
-        (v): v is number => v != null,
-      );
-      const finalNum = all.length >= 1
-        ? Math.round(all.reduce((a, b) => a + b, 0) / all.length)
-        : null;
-      const final = finalNum ?? "";
-      const remarks = finalNum !== null ? (finalNum >= 75 ? "Passed" : "Failed") : "";
+    cardRows.forEach((row) => {
+      const nameClass =
+        row.kind === "header" ? "subj-header" : row.kind === "sub" ? "subj-indent" : "";
       rows += `<tr>
-        <td>${row.name}</td>
-        <td class="text-center">${q1}</td>
-        <td class="text-center">${q2}</td>
-        <td class="text-center">${q3}</td>
-        <td class="text-center">${q4}</td>
-        <td class="text-center">${final}</td>
-        <td class="text-center">${remarks}</td>
+        <td class="${nameClass}">${row.name}</td>
+        <td class="text-center">${row.q1 != null ? Math.round(row.q1) : ""}</td>
+        <td class="text-center">${row.q2 != null ? Math.round(row.q2) : ""}</td>
+        <td class="text-center">${row.q3 != null ? Math.round(row.q3) : ""}</td>
+        <td class="text-center">${row.q4 != null ? Math.round(row.q4) : ""}</td>
+        <td class="text-center">${row.final ?? ""}</td>
+        <td class="text-center">${row.remarks}</td>
       </tr>`;
     });
 
-    const subjectFinals = subjectRows
-      .filter((r) => !r.is_madrasah)
-      .map((r) => {
-        const all = [r.q1, r.q2, r.q3, r.q4].filter(
-          (v): v is number => v != null,
-        );
-        return all.length >= 1
-          ? Math.round(all.reduce((a, b) => a + b, 0) / all.length)
-          : null;
-      })
-      .filter((v): v is number => v != null);
-    const generalAverageNum = subjectFinals.length >= 1
-      ? Math.round(subjectFinals.reduce((a, b) => a + b, 0) / subjectFinals.length)
-      : null;
-    const generalAverage = generalAverageNum != null ? String(generalAverageNum) : "";
-    const generalRemarks = generalAverageNum != null ? (generalAverageNum >= 75 ? "Passed" : "Failed") : "";
+    const { average, remarks: generalRemarks } = computeGeneralAverage(cardRows);
+    const generalAverage = average != null ? String(average) : "";
 
     rows += `<tr class="general-row">
       <td><strong>General Average</strong></td>
@@ -201,6 +194,8 @@ export async function generateSf9Print(params: Sf9Params): Promise<void> {
     .form-table th { background-color: #f0f0f0; font-weight: bold; }
     .general-row { background-color: #f8f8f8; }
     .text-center { text-align: center; }
+    .subj-header { font-weight: bold; background-color: #f0f0f0; }
+    .subj-indent { padding-left: 14px; }
     ${DEPED_HEADER_LOGOS_STYLES}
     @media print { body { print-color-adjust: exact; } }
   </style>

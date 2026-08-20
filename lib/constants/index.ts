@@ -37,6 +37,17 @@ export {
 export type { SubjectProgram } from "./subjects";
 
 export {
+  MAPEH_COMPONENTS,
+  MAPEH_LABEL,
+  getMapehComponent,
+  getMapehComponentLabel,
+  getMapehComponentShortLabel,
+  isMapehComponent,
+  mapehComponentRank,
+} from "./mapeh";
+export type { MapehComponent } from "./mapeh";
+
+export {
   SCHOOL_STAFF_USER_TYPES,
   DIVISION_ASSIGNABLE_USER_TYPES,
   USER_TYPE_LABELS,

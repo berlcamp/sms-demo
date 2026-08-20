@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -31,12 +32,14 @@ import { addItem, updateList } from "@/lib/redux/listSlice";
 import { supabase } from "@/lib/supabase/client";
 import {
   getGradeLevelLabel,
+  getMapehComponentLabel,
   getSubjectProgram,
   getSubjectProgramDescription,
   GRADE_LEVELS,
   GRADE_LEVEL_MAX,
   GRADE_LEVEL_MIN,
   isSelectiveProgram,
+  MAPEH_COMPONENTS,
   SUBJECT_PROGRAMS,
 } from "@/lib/constants";
 import { Subject } from "@/types";
@@ -63,6 +66,11 @@ const FormSchema = z.object({
   grade_level: z.number().min(GRADE_LEVEL_MIN).max(GRADE_LEVEL_MAX),
   is_graded: z.boolean().default(true),
   program: z.enum(["regular", "madrasah", "als"]).default("regular"),
+  // "none" rather than null: a Radix Select item cannot carry an empty value.
+  // Mapped back to NULL on save (migration 153).
+  mapeh_component: z
+    .enum(["none", "music", "arts", "pe", "health"])
+    .default("none"),
   is_active: z.boolean().default(true),
 });
 
@@ -70,6 +78,12 @@ type FormType = z.infer<typeof FormSchema>;
 
 export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Set when a subject literally named MAPEH already exists at this grade
+  // level. Tagging components alongside it would print MAPEH twice, so the
+  // save is held until the user accepts it — the "Save anyway" shape
+  // migration 124 established for intentional schedule double-bookings.
+  const [mapehCollision, setMapehCollision] = useState<string | null>(null);
+  const [acceptMapehCollision, setAcceptMapehCollision] = useState(false);
   const hasResetForEditRef = useRef<string | null>(null);
 
   const dispatch = useAppDispatch();
@@ -84,6 +98,7 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
       grade_level: 1,
       is_graded: true,
       program: "regular",
+      mapeh_component: "none",
       is_active: true,
     },
   });
@@ -92,6 +107,8 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
   useEffect(() => {
     if (!isOpen) {
       hasResetForEditRef.current = null;
+      setMapehCollision(null);
+      setAcceptMapehCollision(false);
       return;
     }
 
@@ -106,6 +123,7 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
           grade_level: editData.grade_level ?? GRADE_LEVEL_MIN,
           is_graded: editData.is_graded ?? true,
           program: getSubjectProgram(editData),
+          mapeh_component: editData.mapeh_component ?? "none",
           is_active: editData.is_active ?? true,
         });
         hasResetForEditRef.current = editId;
@@ -120,6 +138,7 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
         grade_level: 1,
         is_graded: true,
         program: "regular",
+        mapeh_component: "none",
         is_active: true,
       });
       hasResetForEditRef.current = "add";
@@ -128,6 +147,47 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
 
   const onSubmit = async (data: FormType) => {
     if (isSubmitting) return;
+
+    const mapehComponent =
+      data.mapeh_component === "none" ? null : data.mapeh_component;
+
+    // A MAPEH component is folded into a computed parent row that DOES count
+    // toward the general average; a Madrasah/ALS subject is deliberately left
+    // out of it (migration 076). Tagging one as the other asks the card to
+    // both include and exclude the same grade, so refuse rather than pick.
+    if (mapehComponent && isSelectiveProgram(data.program)) {
+      toast.error(
+        "A Madrasah or ALS subject cannot be a MAPEH component — those programs are left out of the general average, while MAPEH counts toward it. Set the program to Regular first.",
+      );
+      return;
+    }
+
+    // Tagging components beside a subject already named MAPEH would print the
+    // learning area twice: once as that subject's own row, once as the
+    // computed group. Warn, but let the school proceed — suppressing the
+    // untagged row would hide grades a teacher actually encoded.
+    if (mapehComponent && !acceptMapehCollision) {
+      let collisionQuery = supabase
+        .from(table)
+        .select("name", { count: "exact" })
+        .eq("grade_level", data.grade_level)
+        .eq("is_active", true)
+        .ilike("name", "mapeh")
+        .is("mapeh_component", null);
+      if (user?.school_id != null) {
+        collisionQuery = collisionQuery.eq("school_id", user.school_id);
+      }
+      if (editData?.id) {
+        collisionQuery = collisionQuery.neq("id", editData.id);
+      }
+      const { count: collisionCount } = await collisionQuery;
+
+      if (collisionCount != null && collisionCount > 0) {
+        setMapehCollision(getGradeLevelLabel(data.grade_level));
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -141,6 +201,8 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
         // Derived from program by migration 133's trigger; written here too so
         // the row is consistent without relying on it.
         is_madrasah: isSelectiveProgram(data.program),
+        // NULL = not part of MAPEH (migration 153)
+        mapeh_component: mapehComponent,
         is_active: data.is_active,
         ...(user?.school_id != null && { school_id: user.school_id }),
       };
@@ -418,6 +480,72 @@ export const AddModal = ({ isOpen, onClose, editData }: ModalProps) => {
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="mapeh_component"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium">
+                    MAPEH Component
+                  </FormLabel>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      // A different choice is a different question; make the
+                      // school re-accept any duplicate-MAPEH warning.
+                      setMapehCollision(null);
+                      setAcceptMapehCollision(false);
+                    }}
+                    value={field.value}
+                    disabled={isSubmitting}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Not part of MAPEH</SelectItem>
+                      {MAPEH_COMPONENTS.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {field.value !== "none" && (
+                    <p className="text-xs text-muted-foreground">
+                      Prints as {getMapehComponentLabel(field.value)} indented
+                      under a MAPEH row on the report card and SF9. MAPEH is
+                      averaged from its components and counts once toward the
+                      general average, not once per component.
+                    </p>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {mapehCollision && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+                <p className="text-xs text-amber-900">
+                  A subject named <strong>MAPEH</strong> already exists for{" "}
+                  {mapehCollision}. Tagging components as well will print MAPEH
+                  twice on the card — once as that subject&apos;s own row, and
+                  once as the group computed from its components.
+                </p>
+                <label className="flex items-start gap-2 text-xs text-amber-900">
+                  <Checkbox
+                    className="mt-0.5"
+                    checked={acceptMapehCollision}
+                    onChange={(e) => setAcceptMapehCollision(e.target.checked)}
+                    disabled={isSubmitting}
+                  />
+                  <span>Save anyway — I know both rows will appear.</span>
+                </label>
+              </div>
+            )}
 
             <FormField
               control={form.control}

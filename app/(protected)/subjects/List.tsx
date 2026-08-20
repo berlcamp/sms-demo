@@ -10,6 +10,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   getGradeLevelLabel,
+  getMapehComponent,
+  getMapehComponentLabel,
+  getMapehComponentShortLabel,
   getSubjectProgram,
   getSubjectProgramLabel,
 } from "@/lib/constants";
@@ -367,6 +370,20 @@ export const List = () => {
                         }`}
                       >
                         {getSubjectProgramLabel(program)}
+                      </span>
+                    );
+                  })()}
+                  {(() => {
+                    // Tagged components print under a computed MAPEH row on
+                    // the report card and SF9 (migration 153).
+                    const component = getMapehComponent(item);
+                    if (!component) return null;
+                    return (
+                      <span
+                        className="ml-1 inline-flex items-center rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800"
+                        title={`MAPEH — ${getMapehComponentLabel(component)}`}
+                      >
+                        MAPEH · {getMapehComponentShortLabel(component)}
                       </span>
                     );
                   })()}

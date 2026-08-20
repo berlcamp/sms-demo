@@ -8,6 +8,11 @@ import {
   sessionWeight,
 } from "@/lib/utils/schoolCalendar";
 import { fetchSchoolSettings } from "@/lib/utils/schoolSettings";
+import {
+  buildCardSubjectRows,
+  computeGeneralAverage,
+  type MapehSourceRow,
+} from "@/lib/utils/mapeh";
 
 export type CoreValueRating = "AO" | "SO" | "RO" | "NO" | "";
 
@@ -129,7 +134,7 @@ interface ReportCardData {
   adviserName: string;
   principalName: string;
   principalTitle: string;
-  subjectRows: Array<{ name: string; is_madrasah: boolean; q1: number | null; q2: number | null; q3: number | null; q4: number | null }>;
+  subjectRows: MapehSourceRow[];
   monthlyAttendance: MonthAttendance[];
   studentName: string;
   gradeLabel: string;
@@ -185,28 +190,35 @@ async function fetchReportCardData(params: ReportCardParams): Promise<ReportCard
     .order("grading_period");
 
   const subjectIds = [...new Set((grades || []).map((g) => g.subject_id))];
-  const subjectMap = new Map<string, { name: string; is_madrasah: boolean }>();
+  const subjectMap = new Map<
+    string,
+    { name: string; code: string | null; is_madrasah: boolean; mapeh_component: string | null }
+  >();
   if (subjectIds.length > 0) {
     const { data: subjects } = await supabase
       .from("sms_subjects")
-      .select("id, name, is_madrasah")
+      .select("id, code, name, is_madrasah, mapeh_component")
       .in("id", subjectIds);
     (subjects || []).forEach((s) =>
-      subjectMap.set(String(s.id), { name: s.name || "—", is_madrasah: !!s.is_madrasah }),
+      subjectMap.set(String(s.id), {
+        name: s.name || "—",
+        code: s.code ?? null,
+        is_madrasah: !!s.is_madrasah,
+        mapeh_component: s.mapeh_component ?? null,
+      }),
     );
   }
 
-  const subjectsMap = new Map<
-    string,
-    { name: string; is_madrasah: boolean; q1: number | null; q2: number | null; q3: number | null; q4: number | null }
-  >();
+  const subjectsMap = new Map<string, MapehSourceRow>();
   (grades || []).forEach((g) => {
     const subjId = String(g.subject_id);
     if (!subjectsMap.has(subjId)) {
       const info = subjectMap.get(subjId);
       subjectsMap.set(subjId, {
         name: info?.name || "—",
+        code: info?.code ?? null,
         is_madrasah: info?.is_madrasah ?? false,
+        mapeh_component: info?.mapeh_component ?? null,
         q1: null, q2: null, q3: null, q4: null,
       });
     }
@@ -286,39 +298,30 @@ function buildAttendanceRows(monthlyAttendance: MonthAttendance[]): { html: stri
 }
 
 function buildGradeRows(subjectRows: ReportCardData["subjectRows"]): { html: string; generalAverage: string; generalRemarks: string } {
+  // Tagged MAPEH components are folded into one computed parent row that
+  // counts once toward the general average, and the components print indented
+  // beneath it (migration 153). With nothing tagged this is the flat list it
+  // has always been, in code order.
+  const rows = buildCardSubjectRows(subjectRows);
+
   let html = "";
-  subjectRows.forEach((row) => {
-    const q1 = row.q1 != null ? Math.round(row.q1) : "";
-    const q2 = row.q2 != null ? Math.round(row.q2) : "";
-    const q3 = row.q3 != null ? Math.round(row.q3) : "";
-    const q4 = row.q4 != null ? Math.round(row.q4) : "";
-    const all = [row.q1, row.q2, row.q3, row.q4].filter((v): v is number => v != null);
-    const finalGradeNum = all.length >= 1 ? Math.round(all.reduce((a, b) => a + b, 0) / all.length) : null;
-    const finalGrade = finalGradeNum ?? "";
-    const remarks = finalGradeNum !== null ? (finalGradeNum >= 75 ? "Passed" : "Failed") : "";
+  rows.forEach((row) => {
+    const nameClass =
+      row.kind === "header" ? "subj-header" : row.kind === "sub" ? "subj-indent" : "";
     html += `<tr>
-      <td>${row.name}</td>
-      <td class="tc">${q1}</td>
-      <td class="tc">${q2}</td>
-      <td class="tc">${q3}</td>
-      <td class="tc">${q4}</td>
-      <td class="tc">${finalGrade}</td>
-      <td class="tc">${remarks}</td>
+      <td class="${nameClass}">${row.name}</td>
+      <td class="tc">${row.q1 != null ? Math.round(row.q1) : ""}</td>
+      <td class="tc">${row.q2 != null ? Math.round(row.q2) : ""}</td>
+      <td class="tc">${row.q3 != null ? Math.round(row.q3) : ""}</td>
+      <td class="tc">${row.q4 != null ? Math.round(row.q4) : ""}</td>
+      <td class="tc">${row.final ?? ""}</td>
+      <td class="tc">${row.remarks}</td>
     </tr>`;
   });
 
-  const subjectFinals = subjectRows
-    .filter((r) => !r.is_madrasah)
-    .map((r) => {
-      const all = [r.q1, r.q2, r.q3, r.q4].filter((v): v is number => v != null);
-      return all.length >= 1 ? Math.round(all.reduce((a, b) => a + b, 0) / all.length) : null;
-    })
-    .filter((v): v is number => v != null);
-  const generalAverageNum = subjectFinals.length >= 1
-    ? Math.round(subjectFinals.reduce((a, b) => a + b, 0) / subjectFinals.length)
-    : null;
-  const generalAverage = generalAverageNum != null ? String(generalAverageNum) : "";
-  const generalRemarks = generalAverageNum != null ? (generalAverageNum >= 75 ? "Passed" : "Failed") : "";
+  const { average, remarks } = computeGeneralAverage(rows);
+  const generalAverage = average != null ? String(average) : "";
+  const generalRemarks = remarks;
 
   html += `<tr class="total-row">
     <td><strong>General Average</strong></td>
@@ -392,6 +395,8 @@ function generate3FoldHTML(data: ReportCardData, coreValues?: CoreValuesData): v
     }
     .tc { text-align: center; }
     .total-row { background-color: #f5f5f5; }
+    .subj-header { font-weight: bold; background-color: #f0f0f0; }
+    .subj-indent { padding-left: 14px; }
     .no-border { border: none; }
     .no-border td { border: none; padding: 1px 2px; }
     .card-header {
@@ -872,6 +877,8 @@ function generate2FoldHTML(data: ReportCardData, coreValues?: CoreValuesData): v
     }
     .tc { text-align: center; }
     .total-row { background-color: #f5f5f5; }
+    .subj-header { font-weight: bold; background-color: #f0f0f0; }
+    .subj-indent { padding-left: 14px; }
     .no-border { border: none; }
     .no-border td { border: none; padding: 1px 3px; }
     .card-header {
