@@ -125,6 +125,10 @@ export function TeacherGradeEntryTable({
       return false;
     }
 
+    // `.limit(1)` before `.maybeSingle()`: a subject that meets in several
+    // time blocks is several `sms_subject_schedules` rows, and maybeSingle on
+    // its own errors (PGRST116) on more than one — which read as "not
+    // assigned" for exactly the teachers who are most assigned.
     const { data, error } = await supabase
       .from("sms_subject_schedules")
       .select("id")
@@ -132,6 +136,7 @@ export function TeacherGradeEntryTable({
       .eq("subject_id", subjectId)
       .eq("section_id", sectionId)
       .eq("school_year", schoolYear)
+      .limit(1)
       .maybeSingle();
 
     if (error || !data) {

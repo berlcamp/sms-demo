@@ -128,6 +128,10 @@ export function ClassRecordTable({
     // Super admins can edit any section's class record (testing/oversight);
     // school heads (readOnly) may view any section without an assignment.
     if (fullUser?.type === "super admin" || readOnly) return true;
+    // `.limit(1)` before `.maybeSingle()`: a subject that meets in several
+    // time blocks is several `sms_subject_schedules` rows, and maybeSingle on
+    // its own errors (PGRST116) on more than one — which read as "not
+    // assigned" for exactly the teachers who are most assigned.
     const { data } = await supabase
       .from("sms_subject_schedules")
       .select("id")
@@ -135,6 +139,7 @@ export function ClassRecordTable({
       .eq("subject_id", subjectId)
       .eq("section_id", sectionId)
       .eq("school_year", schoolYear)
+      .limit(1)
       .maybeSingle();
     if (data) return true;
     const { data: section } = await supabase
