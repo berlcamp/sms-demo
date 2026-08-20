@@ -17,6 +17,7 @@ import {
   type ReportCardDesign,
 } from "@/lib/pdf/generateReportCard";
 import { supabase } from "@/lib/supabase/client";
+import { isTermBasedSchoolYear } from "@/lib/utils/schoolYear";
 import { Printer } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -40,7 +41,14 @@ export function PrintCardModal({
   sectionId,
   schoolYear,
 }: PrintCardModalProps) {
-  const [design, setDesign] = useState<ReportCardDesign>("3-fold");
+  // A term-based school year (SY 2026-2027 onward) is the MATATAG curriculum,
+  // whose card carries three terms — the two legacy designs print four
+  // quarter columns and would leave one permanently blank. Default to the
+  // matching design; a stored choice still wins over it.
+  const defaultDesign: ReportCardDesign = isTermBasedSchoolYear(schoolYear)
+    ? "matatag"
+    : "3-fold";
+  const [design, setDesign] = useState<ReportCardDesign>(defaultDesign);
   const [printing, setPrinting] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -56,13 +64,13 @@ export function PrintCardModal({
       .maybeSingle()
       .then(({ data }) => {
         if (!isMounted) return;
-        setDesign((data?.card_design as ReportCardDesign) ?? "3-fold");
+        setDesign((data?.card_design as ReportCardDesign) ?? defaultDesign);
         setLoading(false);
       });
     return () => {
       isMounted = false;
     };
-  }, [isOpen, studentId, schoolYear]);
+  }, [isOpen, studentId, schoolYear, defaultDesign]);
 
   const handlePrint = async () => {
     setPrinting(true);
@@ -134,7 +142,16 @@ export function PrintCardModal({
             <span className="font-medium text-foreground">Core Values Entry</span>{" "}
             in the student menu. They are included automatically when you print.
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={design === "matatag" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDesign("matatag")}
+              disabled={loading}
+            >
+              MATATAG (2 Fold)
+            </Button>
             <Button
               type="button"
               variant={design === "3-fold" ? "default" : "outline"}
@@ -154,6 +171,15 @@ export function PrintCardModal({
               2 Fold
             </Button>
           </div>
+          {design === "matatag" ? (
+            <p className="text-xs text-muted-foreground">
+              Learner&rsquo;s Performance Report &mdash; one folded sheet. Learning
+              areas come from the grade level&rsquo;s subjects, and the period
+              columns follow the school year (
+              {isTermBasedSchoolYear(schoolYear) ? "3 terms" : "4 quarters"}).
+              Core values are not part of this form.
+            </p>
+          ) : null}
         </div>
 
         <DialogFooter>

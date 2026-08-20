@@ -1,3 +1,4 @@
+import { ALS_SECTION_TYPE, isAlsSectionType } from "@/lib/constants";
 import { printHTMLContent } from "@/lib/pdf/utils";
 import { supabase } from "@/lib/supabase/client";
 import {
@@ -11,8 +12,14 @@ import { fetchSchoolSettings } from "@/lib/utils/schoolSettings";
 import {
   buildCardSubjectRows,
   computeGeneralAverage,
+  type CardSubjectRow,
   type MapehSourceRow,
 } from "@/lib/utils/mapeh";
+import {
+  getGradingPeriods,
+  getGradingPeriodType,
+  type GradingPeriodOption,
+} from "@/lib/utils/schoolYear";
 
 export type CoreValueRating = "AO" | "SO" | "RO" | "NO" | "";
 
@@ -26,7 +33,13 @@ export interface CoreValuesData {
   makabansa2: [CoreValueRating, CoreValueRating, CoreValueRating, CoreValueRating];
 }
 
-export type ReportCardDesign = "3-fold" | "2-fold";
+/**
+ * "matatag" is the 3-term MATATAG card (DepEd, SY 2026-2027 onward): one
+ * folded sheet, two panels, and a Learning Areas table whose period columns
+ * come from `getGradingPeriods()` rather than a hardcoded four quarters.
+ * The other two designs are the legacy 4-quarter cards and are unchanged.
+ */
+export type ReportCardDesign = "3-fold" | "2-fold" | "matatag";
 
 export interface ReportCardParams {
   schoolId: string;
@@ -130,16 +143,129 @@ function fmtDays(value: number): string {
 interface ReportCardData {
   school: { id: string; school_id: string; name: string; address: string; district: string; region: string };
   student: Record<string, string | number | null | undefined>;
-  section: { id: string; name: string; grade_level: number; section_adviser_id: string };
+  section: {
+    id: string;
+    name: string;
+    grade_level: number;
+    section_adviser_id: string;
+    section_type?: string | null;
+  };
   adviserName: string;
   principalName: string;
   principalTitle: string;
   subjectRows: MapehSourceRow[];
+  /**
+   * The full learning-area roster of the section's grade level, used by the
+   * MATATAG card. NULL for the two legacy designs, which keep printing only
+   * the subjects a grade has actually been encoded for.
+   */
+  rosterSubjectRows: MapehSourceRow[] | null;
   monthlyAttendance: MonthAttendance[];
   studentName: string;
   gradeLabel: string;
   genderLabel: string;
   schoolYear: string;
+}
+
+/**
+ * The learning areas printed on the MATATAG card.
+ *
+ * Every other card in this file derives its subject list from `sms_grades`,
+ * which means a learning area shows up only once somebody has encoded a grade
+ * for it — a card printed after Term 1 would be missing whatever the section
+ * had not got to yet, and the printed set would differ learner by learner.
+ * Here the list is the grade level's own roster: the active subjects the
+ * school offers at `section.grade_level`, exactly as the section's Manage
+ * Schedules picker resolves them (migration 136 pairs ALS subjects to ALS
+ * sections and nowhere else), with whatever grades exist filled in.
+ *
+ * Selective subjects — MEP and ALS, which `is_madrasah` marks since migration
+ * 133 derives it from `program` — are listed only for the learners actually
+ * enrolled in them through `sms_student_subjects`. Otherwise every card at the
+ * grade level would carry an Arabic Language row nobody in it takes.
+ *
+ * A subject the learner already has a grade for is always kept even when the
+ * roster no longer lists it: retiring or re-levelling a subject mid-year must
+ * not silently drop an encoded grade off a card.
+ *
+ * MAPEH needs no special handling here — the components come back as ordinary
+ * roster rows and `buildCardSubjectRows` folds them into the computed parent
+ * (migration 153), so tagging a fifth grade's Music subject is all a school
+ * has to do for the MAPEH block to appear on that grade's cards.
+ */
+async function fetchGradeLevelSubjectRows(args: {
+  schoolId: string;
+  studentId: string;
+  sectionId: string;
+  schoolYear: string;
+  gradeLevel: number;
+  sectionType: string | null;
+  graded: Map<string, MapehSourceRow>;
+}): Promise<MapehSourceRow[]> {
+  const { schoolId, studentId, sectionId, schoolYear, gradeLevel, sectionType, graded } = args;
+
+  let query = supabase
+    .from("sms_subjects")
+    .select("id, code, name, is_madrasah, mapeh_component")
+    .eq("grade_level", gradeLevel)
+    .eq("is_active", true)
+    .order("code", { ascending: true });
+  query = isAlsSectionType(sectionType)
+    ? query.eq("program", ALS_SECTION_TYPE)
+    : query.neq("program", ALS_SECTION_TYPE);
+  if (schoolId != null) query = query.eq("school_id", Number(schoolId));
+
+  const { data: subjects, error } = await query;
+  if (error) {
+    // A failed roster read must not lose the grades that were encoded, so
+    // fall back to the list the other designs print.
+    console.error("Report card subject roster:", error);
+    return Array.from(graded.values());
+  }
+
+  const roster = subjects || [];
+
+  // Only fetch the selective enrolments when the roster actually holds one.
+  let selectiveTaken = new Set<string>();
+  if (roster.some((subject) => subject.is_madrasah)) {
+    const { data: studentSubjects } = await supabase
+      .from("sms_student_subjects")
+      .select("subject_id")
+      .eq("student_id", studentId)
+      .eq("section_id", sectionId)
+      .eq("school_year", schoolYear);
+    selectiveTaken = new Set(
+      (studentSubjects || []).map((row) => String(row.subject_id)),
+    );
+  }
+
+  const rows: MapehSourceRow[] = [];
+  const listed = new Set<string>();
+
+  roster.forEach((subject) => {
+    const id = String(subject.id);
+    const encoded = graded.get(id);
+    // A selective subject the learner is not enrolled in still prints when a
+    // grade exists for it — the grade is the stronger evidence of enrolment.
+    if (subject.is_madrasah && !selectiveTaken.has(id) && !encoded) return;
+    listed.add(id);
+    rows.push({
+      name: subject.name || "\u2014",
+      code: subject.code ?? null,
+      is_madrasah: !!subject.is_madrasah,
+      mapeh_component: subject.mapeh_component ?? null,
+      q1: encoded?.q1 ?? null,
+      q2: encoded?.q2 ?? null,
+      q3: encoded?.q3 ?? null,
+      q4: encoded?.q4 ?? null,
+    });
+  });
+
+  graded.forEach((row, id) => {
+    if (!listed.has(id)) rows.push(row);
+  });
+
+  return rows;
 }
 
 async function fetchReportCardData(params: ReportCardParams): Promise<ReportCardData> {
@@ -161,7 +287,7 @@ async function fetchReportCardData(params: ReportCardParams): Promise<ReportCard
 
   const { data: section } = await supabase
     .from("sms_sections")
-    .select("id, name, grade_level, section_adviser_id")
+    .select("id, name, grade_level, section_adviser_id, section_type")
     .eq("id", sectionId)
     .single();
   if (!section) throw new Error("Section not found");
@@ -229,6 +355,23 @@ async function fetchReportCardData(params: ReportCardParams): Promise<ReportCard
     if (g.grading_period === 4) row.q4 = g.grade;
   });
 
+  // The MATATAG card lists every learning area the grade level offers, not
+  // only the ones already carrying a grade, so a card printed at the end of
+  // Term 1 still shows the full set with the later terms left blank. The
+  // 3-fold and 2-fold designs keep their grades-derived list untouched.
+  const rosterSubjectRows =
+    params.design === "matatag"
+      ? await fetchGradeLevelSubjectRows({
+          schoolId,
+          studentId,
+          sectionId,
+          schoolYear,
+          gradeLevel: section.grade_level,
+          sectionType: section.section_type ?? null,
+          graded: subjectsMap,
+        })
+      : null;
+
   const { data: attendanceRecords } = await supabase
     .from("sms_attendance")
     .select("date, am_present, pm_present")
@@ -258,6 +401,7 @@ async function fetchReportCardData(params: ReportCardParams): Promise<ReportCard
     principalName,
     principalTitle,
     subjectRows: Array.from(subjectsMap.values()),
+    rosterSubjectRows,
     monthlyAttendance,
     studentName,
     gradeLabel,
@@ -1225,8 +1369,422 @@ function generate2FoldHTML(data: ReportCardData, coreValues?: CoreValuesData): v
 export async function generateReportCardPrint(params: ReportCardParams): Promise<void> {
   const data = await fetchReportCardData(params);
 
+  if (params.design === "matatag") {
+    return generateMatatagHTML(data);
+  }
   if (params.design === "2-fold") {
     return generate2FoldHTML(data, params.coreValues);
   }
   return generate3FoldHTML(data, params.coreValues);
+}
+
+// ============================================================================
+// MATATAG CARD (3 terms) — DepEd "Learner's Performance Report"
+// ============================================================================
+// One folded sheet: the left panel carries the school header, the learner's
+// details, the progress table and the performance descriptors; the right panel
+// carries attendance, the adviser's per-term remarks, the parent's signature
+// lines and the two transfer certificates.
+//
+// The period columns are NOT hardcoded to three. They come from
+// `getGradingPeriods(schoolYear)`, the same helper the class record and grade
+// entry read, so the card follows the school year rather than the other way
+// round: a term-based year (SY 2026-2027 onward) prints three columns headed
+// "Term", an older year prints four headed "Quarter". Everything downstream —
+// the remarks boxes, the parent signature lines — is generated from the same
+// list, so the three surfaces cannot disagree about how many periods there are.
+
+/** Grade-table body for the MATATAG card, plus its general average. */
+function buildMatatagGradeRows(
+  sourceRows: MapehSourceRow[],
+  periodCount: number,
+): { html: string; average: string; remarks: string; rowCount: number } {
+  // Drop anything encoded past the last period of this school year, so a
+  // stray 4th-quarter row left over from a re-levelled section cannot creep
+  // into a 3-term final grade.
+  const trimmed: MapehSourceRow[] = sourceRows.map((row) => ({
+    ...row,
+    q3: periodCount >= 3 ? row.q3 : null,
+    q4: periodCount >= 4 ? row.q4 : null,
+  }));
+
+  // Tagged MAPEH components fold into one computed parent row that counts once
+  // toward the general average, with the components indented beneath it
+  // (migration 153) — shared with SF9 so the two forms cannot drift.
+  const rows: CardSubjectRow[] = buildCardSubjectRows(trimmed);
+
+  const grade = (value: number | null): string =>
+    value != null ? String(Math.round(value)) : "";
+
+  let html = "";
+  rows.forEach((row) => {
+    const nameClass =
+      row.kind === "header" ? "subj-header" : row.kind === "sub" ? "subj-indent" : "";
+    const cells = [row.q1, row.q2, row.q3, row.q4]
+      .slice(0, periodCount)
+      .map((value) => `<td class="tc">${grade(value)}</td>`)
+      .join("");
+    html += `<tr>
+      <td class="area ${nameClass}">${row.name}</td>
+      ${cells}
+      <td class="tc">${row.final ?? ""}</td>
+      <td class="tc">${row.remarks}</td>
+    </tr>`;
+  });
+
+  // The issued form keeps one empty line under the last learning area for an
+  // area written in by hand; reproduce it.
+  html += `<tr>
+    <td class="area">&nbsp;</td>
+    ${'<td class="tc"></td>'.repeat(periodCount)}
+    <td class="tc"></td>
+    <td class="tc"></td>
+  </tr>`;
+
+  const { average, remarks } = computeGeneralAverage(rows);
+  return {
+    html,
+    average: average != null ? String(average) : "",
+    remarks,
+    rowCount: rows.length,
+  };
+}
+
+function generateMatatagHTML(data: ReportCardData): void {
+  const {
+    school,
+    student,
+    section,
+    adviserName,
+    principalName,
+    principalTitle,
+    subjectRows,
+    rosterSubjectRows,
+    monthlyAttendance,
+    studentName,
+    genderLabel,
+    schoolYear,
+  } = data;
+
+  const periods: GradingPeriodOption[] = getGradingPeriods(schoolYear);
+  const periodCount = periods.length;
+  const periodNoun = getGradingPeriodType(schoolYear) === "term" ? "Term" : "Quarter";
+
+  const { html: gradeRows, average, remarks, rowCount } = buildMatatagGradeRows(
+    rosterSubjectRows ?? subjectRows,
+    periodCount,
+  );
+
+  // A junior-high roster with MAPEH broken out runs to 15+ learning areas,
+  // which would push the descriptors off a panel that clips its overflow.
+  // Tighten the table rather than lose a printed grade.
+  const areasClass = rowCount > 11 ? "areas dense" : "areas";
+
+  // The field is already labelled "Grade:", so print the level alone.
+  const gradeValue =
+    section.grade_level === -1
+      ? "SNED"
+      : section.grade_level === 0
+        ? "Kindergarten"
+        : String(section.grade_level);
+
+  // Jun through Apr, as on the issued form.
+  const months = monthlyAttendance.slice(0, 11);
+  const totals = months.reduce(
+    (acc, m) => ({
+      schoolDays: acc.schoolDays + m.schoolDays,
+      present: acc.present + m.present,
+      absent: acc.absent + m.absent,
+    }),
+    { schoolDays: 0, present: 0, absent: 0 },
+  );
+  const monthHeaders = months.map((m) => `<th class="tc">${m.label}</th>`).join("");
+  const classDayCells = months.map((m) => `<td class="tc">${fmtDays(m.schoolDays)}</td>`).join("");
+  const presentCells = months.map((m) => `<td class="tc">${fmtDays(m.present)}</td>`).join("");
+  const absentCells = months.map((m) => `<td class="tc">${fmtDays(m.absent)}</td>`).join("");
+
+  // The issued form labels these "Term 1..3"; the noun follows the school year
+  // so an older card reads "Quarter 1..4" rather than lying about the period.
+  const remarkRows = periods
+    .map((p) => `<tr><td class="remark-cell">${periodNoun} ${p.value}</td></tr>`)
+    .join("");
+  const parentSignatureLines = periods
+    .map(
+      (p) =>
+        `<div class="sig-row"><span class="sig-label">${periodNoun} ${p.value}</span><span class="sig-line"></span></div>`,
+    )
+    .join("");
+
+  // Age at printing, on the same rule the rest of the card uses.
+  let age = "";
+  if (student.date_of_birth) {
+    const dob = new Date(student.date_of_birth as string);
+    const now = new Date();
+    age = String(
+      now.getFullYear() -
+        dob.getFullYear() -
+        (now < new Date(now.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0),
+    );
+  }
+
+  const regionLine = school.region || "Region ______";
+  const districtLine = school.district ? `District of ${school.district}` : "District of ______";
+  const addressLine = school.address || "Municipality, Province";
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Learner's Performance Report - ${studentName}</title>
+  <style>
+    @page { size: 13in 8.5in; margin: 0.25in; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 8pt;
+      color: #000;
+      background: #fff;
+    }
+    .page { width: 100%; height: 7.9in; display: flex; }
+    .panel { width: 50%; padding: 6px 14px; overflow: hidden; }
+    .panel-left { border-right: 1px dashed #bbb; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #000; padding: 2px 4px; }
+    th { background-color: #d9edf7; font-weight: bold; text-align: center; }
+    .tc { text-align: center; }
+    .bold { font-weight: bold; }
+
+    /* ---- school header ---- */
+    .head { display: flex; align-items: flex-start; gap: 6px; }
+    .head-logo { width: 62px; flex: 0 0 62px; text-align: center; }
+    .head-logo img { width: 58px; height: 58px; object-fit: contain; }
+    .head-text { flex: 1; text-align: center; line-height: 1.25; font-size: 9pt; }
+    .head-text .republic { font-family: "Brush Script MT", "Segoe Script", cursive; font-size: 11pt; font-weight: bold; }
+    .head-text .deped { font-size: 11pt; }
+    .head-text .division { font-weight: bold; font-size: 10pt; }
+    .head-text .school { font-weight: bold; font-size: 12pt; margin-top: 2px; text-transform: uppercase; }
+    .school-seal { width: 62px; flex: 0 0 62px; text-align: center; margin-top: 4px; }
+    .school-seal img { width: 58px; height: 58px; object-fit: contain; }
+    .card-title { text-align: center; font-weight: bold; font-size: 12pt; margin-top: 4px; }
+    .card-sy { text-align: center; font-weight: bold; font-size: 11pt; }
+
+    /* ---- learner details ---- */
+    .details { font-size: 9.5pt; margin-top: 6px; line-height: 1.9; }
+    .fill { border-bottom: 1px solid #000; display: inline-block; padding: 0 4px; }
+
+    .letter { font-size: 9.5pt; margin-top: 6px; line-height: 1.35; text-align: justify; }
+    .letter p { text-indent: 28px; }
+
+    .section-title { text-align: center; font-weight: bold; font-size: 10.5pt; margin: 6px 0 3px; }
+
+    /* ---- learning areas ---- */
+    .areas th, .areas td { font-size: 9pt; }
+    .areas .area { font-weight: bold; }
+    .areas .subj-header { background-color: #f0f0f0; }
+    .areas .subj-indent { padding-left: 16px; font-weight: normal; }
+    .areas .ga { text-align: right; font-weight: bold; font-style: italic; }
+    .areas.dense th, .areas.dense td { font-size: 7.5pt; padding: 0px 4px; }
+
+    /* ---- descriptors ---- */
+    .descriptors { margin-top: 6px; font-size: 9pt; }
+    .descriptors .heading { font-weight: bold; }
+    .descriptors table, .descriptors th, .descriptors td { border: none; }
+    .descriptors th { background: none; font-weight: bold; }
+    .descriptors td { text-align: center; padding: 0 4px; }
+
+    /* ---- right panel ---- */
+    .block-title { text-align: center; font-weight: bold; font-size: 11pt; margin: 0 0 4px; }
+    .attendance th, .attendance td { font-size: 8pt; }
+    .attendance .row-label { text-align: center; font-weight: bold; width: 12%; }
+    .remarks-table td { height: 0.62in; vertical-align: top; font-size: 10pt; }
+    .remark-cell { font-size: 10pt; }
+
+    .sig-row { display: flex; align-items: flex-end; justify-content: center; gap: 10px; font-size: 10.5pt; line-height: 2; }
+    .sig-label { width: 60px; text-align: left; }
+    .sig-line { border-bottom: 1px solid #000; width: 200px; }
+
+    .transfer { margin-top: 10px; font-size: 8pt; font-weight: bold; }
+    .transfer .body { font-weight: bold; line-height: 1.35; }
+    .transfer .field { margin-top: 4px; }
+    .rule { border-bottom: 1px solid #000; display: inline-block; }
+    .signatories { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 10px; }
+    .signatory { text-align: center; }
+    .signatory .name { border-bottom: 1px solid #000; min-width: 1.9in; display: block; padding: 0 6px; }
+    .signatory .role { font-size: 8pt; }
+
+    @media print {
+      body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ==================== LEFT PANEL ==================== -->
+  <div class="panel panel-left">
+    <div class="head">
+      <div class="head-logo">
+        <img src="/deped_logo_1.png" alt="DepEd" onerror="this.style.display='none'" />
+      </div>
+      <div class="head-text">
+        <div class="republic">Republic of the Philippines</div>
+        <div class="deped">Department of Education</div>
+        <div>${regionLine}</div>
+        <div class="division">SCHOOLS DIVISION OF BAYUGAN CITY</div>
+        <div>${districtLine}</div>
+        <div>${addressLine}</div>
+        <div class="school">${school.name}</div>
+      </div>
+      <!-- The issued form leaves a circle here for the school's own seal; the
+           system stores no school logo, so this carries the second DepEd logo,
+           matching the right-hand slot of every other printable's header. -->
+      <div class="school-seal">
+        <img src="/deped_logo_2.png" alt="DepEd" onerror="this.style.display='none'" />
+      </div>
+    </div>
+
+    <div class="card-title">LEARNER&rsquo;S PERFORMANCE REPORT</div>
+    <div class="card-sy">S.Y ${schoolYear}</div>
+
+    <div class="details">
+      <div>
+        Name: <span class="fill" style="min-width:3.1in;">${studentName}</span>
+        Age: <span class="fill" style="min-width:0.4in;">${age}</span>
+        Sex: <span class="fill" style="min-width:0.7in;">${genderLabel}</span>
+      </div>
+      <div>
+        LRN: <span class="fill" style="min-width:2.4in;">${student.lrn ?? ""}</span>
+        Grade: <span class="fill" style="min-width:0.9in;">${gradeValue}</span>
+        Section: <span class="fill" style="min-width:1.1in;">${section.name}</span>
+      </div>
+    </div>
+
+    <div class="letter">
+      <div>Dear Parents,</div>
+      <p>This Performance Report shows the ability and progress your child has made in the different learning areas as well as his/her core values.</p>
+      <p>The school welcomes you should you desire to know more about your child&rsquo;s progress.</p>
+    </div>
+
+    <div class="section-title">LEARNER&rsquo;S PROGRESS AND ACHIEVEMENT</div>
+    <table class="${areasClass}">
+      <thead>
+        <tr>
+          <th rowspan="2" style="width:34%;">Learning Areas</th>
+          <th colspan="${periodCount}">${periodNoun}</th>
+          <th rowspan="2" style="width:13%;">Final<br>Grade</th>
+          <th rowspan="2" style="width:16%;">Remarks</th>
+        </tr>
+        <tr>
+          ${periods.map((p) => `<th>${p.value}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${gradeRows}
+        <tr>
+          <td class="ga" colspan="${periodCount + 1}">General Average</td>
+          <td class="tc bold">${average}</td>
+          <td class="tc bold">${remarks}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="descriptors">
+      <div class="heading">PERFORMANCE DESCRIPTORS</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:34%;">GRADING SCALE</th>
+            <th style="width:36%;">DESCRIPTION</th>
+            <th style="width:30%;">REMARKS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>90-100</td><td>Advancing</td><td>Passed</td></tr>
+          <tr><td>80-89</td><td>Benchmarking</td><td>Passed</td></tr>
+          <tr><td>75-84</td><td>Connecting</td><td>Passed</td></tr>
+          <tr><td>65-74</td><td>Developing</td><td>Passed</td></tr>
+          <tr><td>0-64</td><td>Emerging</td><td>Passed</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ==================== RIGHT PANEL ==================== -->
+  <div class="panel">
+    <div class="block-title">ATTENDANCE RECORD</div>
+    <table class="attendance">
+      <thead>
+        <tr>
+          <th class="row-label">Month</th>
+          ${monthHeaders}
+          <th class="tc">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="row-label">No. of Class Days</td>
+          ${classDayCells}
+          <td class="tc bold">${fmtDays(totals.schoolDays)}</td>
+        </tr>
+        <tr>
+          <td class="row-label">No. of Days Present</td>
+          ${presentCells}
+          <td class="tc bold">${fmtDays(totals.present)}</td>
+        </tr>
+        <tr>
+          <td class="row-label">No. of Days Absent</td>
+          ${absentCells}
+          <td class="tc bold">${fmtDays(totals.absent)}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="block-title" style="margin-top:12px;">TEACHER&rsquo;S COMMENTS / REMARKS</div>
+    <table class="remarks-table">
+      <tbody>
+        ${remarkRows}
+      </tbody>
+    </table>
+
+    <div class="block-title" style="margin-top:12px;">PARENT&rsquo;S / GUARDIAN&rsquo;S SIGNATURE</div>
+    ${parentSignatureLines}
+
+    <div class="transfer">
+      <div class="block-title" style="font-size:9pt;margin-top:8px;">CERTIFICATE OF TRANSFER</div>
+      <div class="body">This is to certify that the above-named learner has satisfactorily completed the requirements for the grade level indicated.</div>
+      <div class="field">Admitted to Grade: <span class="rule" style="width:2.4in;"></span></div>
+      <div class="field">Eligible for Admission to Grade: <span class="rule" style="width:1.7in;"></span></div>
+      <div class="field">Approved:</div>
+      <div class="signatories">
+        <div class="signatory">
+          <span class="name">${principalName}</span>
+          <span class="role">${principalTitle || "School Head"}</span>
+        </div>
+        <div class="signatory">
+          <span class="name">${adviserName}</span>
+          <span class="role">Adviser</span>
+        </div>
+      </div>
+
+      <div class="block-title" style="font-size:9pt;margin-top:12px;">CANCELLATION OF ELIGIBILITY TO TRANSFER</div>
+      <div style="display:flex;justify-content:space-between;">
+        <span>Admitted in: <span class="rule" style="width:1.5in;"></span></span>
+        <span>Date: <span class="rule" style="width:1.4in;"></span></span>
+      </div>
+      <div class="signatories" style="justify-content:flex-start;">
+        <div class="signatory">
+          <span class="name">${principalName}</span>
+          <span class="role">${principalTitle || "School Head"}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+  printHTMLContent(htmlContent);
 }
