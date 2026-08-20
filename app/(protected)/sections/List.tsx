@@ -289,70 +289,65 @@ export const List = () => {
         <table className="app__table">
           <thead className="app__table_thead">
             <tr>
-              <th className="app__table_th">Section Name</th>
+              <th className="app__table_th">Section</th>
               <th className="app__table_th">Grade Level</th>
-              <th className="app__table_th">School Year</th>
-              <th className="app__table_th">Section Type</th>
-              <th className="app__table_th">SHS Strand</th>
               <th className="app__table_th">Adviser</th>
               <th className="app__table_th">Classroom</th>
               <th className="app__table_th">Scheduled Subjects</th>
-              <th className="app__table_th">Status</th>
               <th className="app__table_th_right">Actions</th>
             </tr>
           </thead>
           <tbody className="app__table_tbody">
             {(list as ItemType[]).map((item: ItemType) => (
               <tr key={item.id} className="app__table_tr">
+                {/* Section name carries the school year and the active flag —
+                    three narrow columns of one value each only forced the
+                    table into a horizontal scrollbar. */}
                 <td className="app__table_td">
                   <div className="app__table_cell_text">
-                    <div className="app__table_cell_title">{item.name}</div>
-                  </div>
-                </td>
-                <td className="app__table_td">
-                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary">
-                    {getGradeLevelLabel(item.grade_level)}
-                  </span>
-                </td>
-                <td className="app__table_td">
-                  <div className="app__table_cell_text">
-                    <div className="app__table_cell_title">
+                    <div className="app__table_cell_title flex items-center gap-2">
+                      <span>{item.name}</span>
+                      {!item.is_active && (
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">
+                          Inactive
+                        </span>
+                      )}
+                    </div>
+                    <div className="app__table_cell_subtitle">
                       {item.school_year}
                     </div>
                   </div>
                 </td>
                 <td className="app__table_td">
                   <div className="app__table_cell_text">
-                    <div className="app__table_cell_title">
-                      {item.section_type ? (
-                        <span>
-                          {SECTION_TYPE_LABELS[item.section_type] ??
-                            item.section_type}
-                        </span>
-                      ) : (
-                        "-"
-                      )}
+                    <div>
+                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary">
+                        {getGradeLevelLabel(item.grade_level)}
+                      </span>
                     </div>
-                  </div>
-                </td>
-                {/* A Grade 11-12 section with no strand recorded drops out
-                    of the division's Track & Strand report entirely, so flag
-                    it here rather than letting it fail silently. */}
-                <td className="app__table_td">
-                  <div className="app__table_cell_text">
-                    <div className="app__table_cell_title">
-                      {!isShsGrade(item.grade_level) ? (
-                        <span className="text-muted-foreground">-</span>
-                      ) : item.strand ? (
-                        <span>
-                          {getStrandLabel(item.strand)}
-                          {item.specialization ? ` — ${item.specialization}` : ""}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
-                          Not set
-                        </span>
-                      )}
+                    {/* Section type, and for Grades 11-12 the strand. A SHS
+                        section with no strand recorded drops out of the
+                        division's Track & Strand report entirely, so flag it
+                        here rather than letting it fail silently. */}
+                    <div className="app__table_cell_subtitle">
+                      {item.section_type
+                        ? SECTION_TYPE_LABELS[item.section_type] ??
+                          item.section_type
+                        : "-"}
+                      {isShsGrade(item.grade_level) &&
+                        (item.strand ? (
+                          <span>
+                            {" · "}
+                            {getStrandLabel(item.strand)}
+                            {item.specialization
+                              ? ` — ${item.specialization}`
+                              : ""}
+                          </span>
+                        ) : (
+                          <span className="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
+                            Strand not set
+                          </span>
+                        ))}
                     </div>
                   </div>
                 </td>
@@ -400,17 +395,6 @@ export const List = () => {
                       <TemporaryScheduleBadge />
                     )}
                   </div>
-                </td>
-                <td className="app__table_td">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      item.is_active
-                        ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {item.is_active ? "Active" : "Inactive"}
-                  </span>
                 </td>
                 <td className="app__table_td_actions">
                   <div className="app__table_action_container">
