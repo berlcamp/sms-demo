@@ -29,6 +29,7 @@ import {
   TrendingUp,
   User,
   Users,
+  Warehouse,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -424,20 +425,27 @@ export function AppSidebar() {
       moduleName: "division_submission",
     },
   ];
-  // The SRC is a school head accountability document the four signatories
-  // certify; a librarian has no reason to author one, and RLS (migration 112)
-  // refuses their writes regardless.
-  const canAuthorSrc = isSchoolHead || userType === "admin" || userType === "registrar";
+  // The SRC and the NSBI are school head accountability documents their
+  // signatories certify; a librarian has no reason to author either, and RLS
+  // (migrations 112 and 154) refuses their writes regardless.
+  const canAuthorSchoolReturns =
+    isSchoolHead || userType === "admin" || userType === "registrar";
   const form137MenuItems = hasSchoolManagementAccess
     ? [
         ...form137Items,
-        ...(canAuthorSrc
+        ...(canAuthorSchoolReturns
           ? [
               {
                 title: "School Report Card",
                 url: "/reports/school-report-card",
                 icon: FileBarChart,
                 moduleName: "school_report_card",
+              },
+              {
+                title: "Building Inventory (NSBI)",
+                url: "/reports/nsbi",
+                icon: Warehouse,
+                moduleName: "nsbi",
               },
             ]
           : []),

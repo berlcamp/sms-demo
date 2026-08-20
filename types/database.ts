@@ -3,6 +3,7 @@
  */
 
 import type { SubjectProgram } from "@/lib/constants/subjects";
+import type { MapehComponent } from "@/lib/constants/mapeh";
 
 export interface User {
   id: string;
@@ -385,6 +386,7 @@ export interface Subject {
   is_graded?: boolean; // When false, subject does not appear in Grade Entry module
   program?: SubjectProgram; // regular | madrasah | als — source of truth (migration 133)
   is_madrasah?: boolean; // Derived from program; true = only selectively enrolled students take this subject, and it is out of the general average
+  mapeh_component?: MapehComponent | null; // music | arts | pe | health, or null when not part of MAPEH (migration 154)
   created_at: string;
   updated_at: string;
 }
@@ -2308,4 +2310,228 @@ export interface PwdFourPsFact {
   fourps_female: number;
   ip_male: number;
   ip_female: number;
+}
+
+// ============================================================================
+// NATIONAL SCHOOL BUILDING INVENTORY — NSBI (migration 154)
+// ============================================================================
+// The DepEd School Building Inventory Form: a physical-plant census filed
+// roughly every two years, headed "as of May 31, <year>", and signed by four
+// officers. Everything here is a SNAPSHOT taken at entry time and never
+// re-derived from live data — reprinting a filed inventory must reproduce the
+// document that was signed (the 112/121/152 rule).
+
+export type NsbiStatus = "draft" | "submitted" | "locked";
+
+export type NsbiFundSource =
+  | "deped_national"
+  | "lgu"
+  | "foreign"
+  | "private_sector"
+  | "house_senate"
+  | "other_nga";
+
+/** Table 1, Col. 5 — seven values. Not sms_rooms.condition, which has four. */
+export type NsbiBuildingCondition =
+  | "good"
+  | "needs_minor_repair"
+  | "needs_major_repair"
+  | "ongoing_construction"
+  | "for_completion"
+  | "for_condemnation"
+  | "condemned";
+
+/** Table 2, Col. 4 — five values; a room cannot be under construction. */
+export type NsbiRoomCondition =
+  | "good"
+  | "needs_minor_repair"
+  | "needs_major_repair"
+  | "for_condemnation"
+  | "condemned";
+
+export type NsbiClassification = "permanent" | "semi_permanent";
+
+export type NsbiBuildingMaterial =
+  | "concrete"
+  | "wood"
+  | "steel"
+  | "plastic"
+  | "stone"
+  | "glass";
+
+export type NsbiRoomUsage =
+  | "instructional"
+  | "non_instructional"
+  | "combination";
+
+export type NsbiAmenityKey =
+  | "covered_court"
+  | "gymnasium"
+  | "solar_panel"
+  | "permanent_perimeter_fence"
+  | "temporary_perimeter_fence"
+  | "flood_marker"
+  | "playground"
+  | "school_garden"
+  | "entrance_gate"
+  | "exit_gate"
+  | "bike_racks"
+  | "paved_pathway_entrance_to_building"
+  | "pathway_cover_roofing";
+
+export type NsbiSignatoryRole =
+  | "school_head"
+  | "planning_officer"
+  | "supply_officer"
+  | "engineer";
+
+/** The five printed pages. Several tables share a page — see NSBI_PAGES. */
+export type NsbiPageKey = "page_1" | "page_2" | "page_3" | "page_4" | "page_5";
+
+export interface NsbiSignatory {
+  role: NsbiSignatoryRole;
+  name: string;
+  title: string | null;
+}
+
+/**
+ * Table 6. An absent key means unanswered, which is deliberately distinct from
+ * an answered "No" on a form certified as complete.
+ */
+export type NsbiAmenityMap = Partial<Record<NsbiAmenityKey, boolean>>;
+
+export interface NsbiSubmission {
+  id: string;
+  school_id: string;
+  /** The date the form is headed with. Printed from here, never from today. */
+  as_of_date: string;
+  status: NsbiStatus;
+
+  latitude: number | null;
+  longitude: number | null;
+
+  // Table 3
+  tls_count: number | null;
+  tls_sections_count: number | null;
+  makeshift_count: number | null;
+  makeshift_sections_count: number | null;
+
+  // Table 4B — stand-alone facilities belong to no building
+  standalone_bowls_male: number | null;
+  standalone_bowls_female: number | null;
+  standalone_bowls_pwd: number | null;
+  standalone_bowls_shared: number | null;
+  standalone_bowls_nonfunctional: number | null;
+  standalone_washbasins: number | null;
+  standalone_urinals: number | null;
+  standalone_urinal_troughs: number | null;
+  standalone_septic_tank: boolean | null;
+  standalone_faucets_with_water: number | null;
+  standalone_faucets_without_water: number | null;
+
+  // Table 5
+  furniture_kinder_modular_table: number | null;
+  furniture_kinder_chair: number | null;
+  furniture_armchair: number | null;
+  furniture_school_desk: number | null;
+  furniture_other_table: number | null;
+  furniture_other_chair: number | null;
+  furniture_1seater_elementary: number | null;
+  furniture_1seater_jhs: number | null;
+  furniture_1seater_shs: number | null;
+  furniture_2seater_elementary: number | null;
+  furniture_2seater_jhs: number | null;
+  furniture_2seater_shs: number | null;
+
+  // Tables 6 and 7
+  amenities: NsbiAmenityMap;
+  access_road_types: string[];
+  transport_types: string[];
+
+  signatories: NsbiSignatory[];
+  notes: string | null;
+  submitted_at: string | null;
+  submitted_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Table 1 (Cols. 1–18) plus that building's Table 4A counts. */
+export interface NsbiBuilding {
+  id: string;
+  submission_id: string;
+  sort_order: number;
+
+  building_name: string;
+  /** App-validated against NSBI_BUILDING_TYPES, free TEXT in the database. */
+  building_type: string | null;
+  fund_sources: NsbiFundSource[];
+  specific_fund_source: string | null;
+  condition: NsbiBuildingCondition | null;
+  storeys: number | null;
+  room_count: number | null;
+  year_completed: number | null;
+  classification: NsbiClassification | null;
+  pwd_accessible: boolean | null;
+  major_repair_last_5y: boolean | null;
+  has_certificate_of_acceptance: boolean | null;
+  in_deped_book_of_accounts: boolean | null;
+  building_materials: NsbiBuildingMaterial[];
+  date_of_acquisition: string | null;
+  acquisition_cost: number | null;
+  book_value: number | null;
+  insurance_info: string | null;
+
+  // Table 4A
+  bowls_male: number | null;
+  bowls_female: number | null;
+  bowls_pwd: number | null;
+  bowls_shared: number | null;
+  bowls_nonfunctional: number | null;
+  washbasins: number | null;
+  urinals: number | null;
+  urinal_troughs: number | null;
+  septic_tank: boolean | null;
+  faucets_with_water: number | null;
+  faucets_without_water: number | null;
+
+  created_at: string;
+  updated_at: string;
+}
+
+/** Table 2 (Cols. 1–8). */
+export interface NsbiRoom {
+  id: string;
+  submission_id: string;
+  building_id: string;
+  sort_order: number;
+
+  floor_number: number | null;
+  room_number: string | null;
+  condition: NsbiRoomCondition | null;
+  room_usage: NsbiRoomUsage | null;
+  /**
+   * Col. 6. DUPLICATES ARE MEANINGFUL — two concurrent SPED classes in one room
+   * is ["sped_classroom", "sped_classroom"], per the answering guide. The
+   * number of entries is the number of concurrent usages.
+   */
+  actual_usages: string[];
+  /** Width is the chalkboard side, length the window side. */
+  width_m: number | null;
+  length_m: number | null;
+  /**
+   * Provenance for prefill deduplication only. Never read for display: the
+   * printed form uses this row's own columns, which is what lets a room be
+   * renamed or retired without disturbing a filed inventory.
+   */
+  source_room_id: string | null;
+
+  created_at: string;
+  updated_at: string;
+}
+
+/** Rows written by the nsbi_prefill_rooms and nsbi_copy_from_previous RPCs. */
+export interface NsbiCopyResult {
+  buildings_added: number;
+  rooms_added: number;
 }
