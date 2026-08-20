@@ -3,7 +3,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { getGradeLevelLabel } from "@/lib/constants";
 import { APP_NAME, ORG_FOOTER, ORG_NAME } from "@/lib/constants/branding";
-import { supabase } from "@/lib/supabase/client";
 import {
   fetchPublicEnrollmentCounts,
   gradeBand,

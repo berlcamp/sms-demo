@@ -49,7 +49,7 @@ trap 'rm -rf "$TMP"' EXIT
 for p in "${PARTS[@]}"; do : > "$TMP/$p"; done
 
 # `ls | sort` is the ordering a migration runner uses, and the ordering the
-# verification replay used. Numbers 091/092/098/135 are duplicated across files,
+# verification replay used. Numbers 091/092/098/135/140 are duplicated across files,
 # so full-filename order — not the numeric prefix — is what disambiguates them.
 for f in $(ls "$MIG" | sort); do
   echo "$f" >> "$TMP/$(part_for "$f")"

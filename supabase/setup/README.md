@@ -115,7 +115,7 @@ In the cloned checkout's `.env.local`:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://<new-project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
-NEXT_PUBLIC_SERVICE_ROLE_KEY=<service role key>
+SUPABASE_SERVICE_ROLE_KEY=<service role key>
 STUDENT_PORTAL_JWT_SECRET=<generate a NEW random secret>
 ```
 
