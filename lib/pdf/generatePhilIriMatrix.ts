@@ -6,10 +6,16 @@
  * per-question comprehension marks) and the resulting reading profile, split
  * into a MALE block and a FEMALE block, each repeating the full column header.
  *
- * Column layout mirrors the DepEd workbook exactly (24 columns):
+ * Column layout mirrors the DepEd workbook:
  *   No · Name · 7 miscue types · Self-Correction · Total ·
- *   Word Recognition (Ave. Perf. / Level) · Questions 1-7 ·
+ *   Word Recognition (Ave. Perf. / Level) · Questions 1-n ·
  *   Comprehension (Correct Answer / Ave. Perf. / Level) · Reading Profile
+ *
+ * The number of question columns is NOT fixed at 7 (migration 152): learners in
+ * one section sit different graded passages, and DepEd passages carry different
+ * question counts. The table is sized to the widest read on the page and shorter
+ * learners get blocked-out cells, so a mark is never read against the wrong
+ * question number. With every learner at 7 the output is the DepEd shape exactly.
  *
  * Each learner's figures come from their FRONTIER read — the highest-grade
  * passage they were tested on — which is the same read deriveFinalProfile()
@@ -18,6 +24,7 @@
 
 import {
   PHILIRI_COMPREHENSION_QUESTIONS,
+  PHILIRI_QUESTION_COUNT_MAX,
   PHILIRI_MISCUE_TYPES,
   PHILIRI_SELF_CORRECTION,
   getGradeLevelLabel,
@@ -40,6 +47,12 @@ export interface PhilIriMatrixLearner {
   wordReadingLevel: string | null;
   /** q1..qn marks from the frontier read. */
   answers: Record<string, PhilIriComprehensionAnswer> | null;
+  /**
+   * Questions the frontier read was scored against (the record's own
+   * comprehension_total). Null for a pre-152 row, which falls back to the marks
+   * actually stored, then to the standard 7.
+   */
+  comprehensionTotal?: number | null;
   comprehensionRaw: number | null;
   comprehensionScore: number | null; // %
   comprehensionLevel: string | null;
@@ -80,10 +93,29 @@ const PHASE_COLUMNS: { phase: string; label: string }[] = [
   { phase: "EoSY", label: "Posttest" },
 ];
 
-const QUESTION_KEYS = Array.from(
-  { length: PHILIRI_COMPREHENSION_QUESTIONS },
-  (_, i) => `q${i + 1}`,
-);
+/** How many question columns one learner's frontier read needs. */
+function learnerQuestionCount(row: PhilIriMatrixLearner): number {
+  const stored = Number(row.comprehensionTotal);
+  if (Number.isFinite(stored) && stored > 0) return Math.trunc(stored);
+  const marked = Object.keys(row.answers ?? {}).length;
+  return marked > 0 ? marked : PHILIRI_COMPREHENSION_QUESTIONS;
+}
+
+/**
+ * Question columns for the whole page: the widest read on it, never fewer than
+ * the standard 7 (so the familiar workbook shape survives a short passage) and
+ * never more than a passage may legally carry.
+ */
+function pageQuestionCount(learners: PhilIriMatrixLearner[]): number {
+  const widest = learners.reduce(
+    (m, l) => Math.max(m, learnerQuestionCount(l)),
+    PHILIRI_COMPREHENSION_QUESTIONS,
+  );
+  return Math.min(widest, PHILIRI_QUESTION_COUNT_MAX);
+}
+
+const questionKeys = (n: number): string[] =>
+  Array.from({ length: n }, (_, i) => `q${i + 1}`);
 
 function num(v: number | null | undefined): string {
   return typeof v === "number" ? String(v) : "";
@@ -93,29 +125,41 @@ function pct(v: number | null | undefined): string {
   return typeof v === "number" ? `${v}%` : "";
 }
 
-// Fixed column widths (% of the landscape page), in table order. 24 columns:
-// No · Name · 7 miscues · Self-Correction · Total · WR Ave/Level · Q1-7 ·
-// Comp Correct/Ave/Level · Reading Profile. Must sum to 100.
-const COL_WIDTHS: number[] = [
-  2.5, // No.
-  12, // Name of Pupils
-  ...new Array(PHILIRI_MISCUE_TYPES.length + 1).fill(4.2), // miscues + self-correction
-  3, // Total
-  4, // Word Recognition — Ave. Perf.
-  5.5, // Word Recognition — Level
-  ...new Array(PHILIRI_COMPREHENSION_QUESTIONS).fill(2), // Questions 1..n
-  3.5, // Comprehension — Correct Answer
-  4, // Comprehension — Ave. Perf.
-  5.5, // Comprehension — Level
-  12.4, // Reading Profile
-];
+// Column widths (% of the landscape page), in table order:
+// No · Name · 7 miscues · Self-Correction · Total · WR Ave/Level · Q1-n ·
+// Comp Correct/Ave/Level · Reading Profile.
+//
+// The 7-question layout keeps the widths the DepEd workbook was tuned to. Beyond
+// that the question columns hold a floor of 1.1% each (about a 10pt cell, enough
+// for a ✓ at the tightened question-cell padding) and the whole array is
+// normalised back to 100%, so the extra columns are paid for by the two widest
+// text columns rather than overflowing the page.
+function colWidths(n: number): number[] {
+  const questionWidth = Math.max(1.1, 14 / n);
+  const raw = [
+    2.5, // No.
+    12, // Name of Pupils
+    ...new Array(PHILIRI_MISCUE_TYPES.length + 1).fill(4.2), // miscues + self-correction
+    3, // Total
+    4, // Word Recognition — Ave. Perf.
+    5.5, // Word Recognition — Level
+    ...new Array(n).fill(questionWidth), // Questions 1..n
+    3.5, // Comprehension — Correct Answer
+    4, // Comprehension — Ave. Perf.
+    5.5, // Comprehension — Level
+    12.4, // Reading Profile
+  ];
+  const sum = raw.reduce((a, b) => a + b, 0);
+  return raw.map((w) => (w * 100) / sum);
+}
 
-const COLGROUP = `<colgroup>${COL_WIDTHS.map(
-  (w) => `<col style="width:${w}%">`,
-).join("")}</colgroup>`;
+const colgroup = (n: number): string =>
+  `<colgroup>${colWidths(n)
+    .map((w) => `<col style="width:${w.toFixed(3)}%">`)
+    .join("")}</colgroup>`;
 
 /** Two header rows (grouped + leaf), repeated above each sex block. */
-function headerRows(): string {
+function headerRows(n: number): string {
   const miscueHeads = [
     ...PHILIRI_MISCUE_TYPES.map((m) => m.en),
     PHILIRI_SELF_CORRECTION.en,
@@ -129,21 +173,27 @@ function headerRows(): string {
     ${miscueHeads}
     <th rowspan="2">Total</th>
     <th colspan="2">Word Recognition</th>
-    <th colspan="${PHILIRI_COMPREHENSION_QUESTIONS}">Questions</th>
+    <th colspan="${n}">Questions</th>
     <th colspan="3">Comprehension</th>
     <th rowspan="2">Reading Profile</th>
   </tr>
   <tr>
     <th class="tight">Ave. Perf.</th>
     <th class="tight">Level</th>
-    ${QUESTION_KEYS.map((_, i) => `<th>${i + 1}</th>`).join("")}
+    ${questionKeys(n)
+      .map((_, i) => `<th class="q">${i + 1}</th>`)
+      .join("")}
     <th class="tight">Correct Answer</th>
     <th class="tight">Ave. Perf.</th>
     <th class="tight">Level</th>
   </tr>`;
 }
 
-function learnerRow(row: PhilIriMatrixLearner, index: number): string {
+function learnerRow(
+  row: PhilIriMatrixLearner,
+  index: number,
+  n: number,
+): string {
   const { student, miscueCounts, answers } = row;
   const counts = miscueCounts ?? {};
 
@@ -154,11 +204,18 @@ function learnerRow(row: PhilIriMatrixLearner, index: number): string {
     .map((k) => `<td class="c">${num(counts[k])}</td>`)
     .join("");
 
-  const questionCells = QUESTION_KEYS.map((q) => {
-    const a = answers?.[q];
-    const mark = a?.correct === true ? "✓" : a?.correct === false ? "✗" : "";
-    return `<td class="c">${mark}</td>`;
-  }).join("");
+  // Cells past this learner's own question count are blocked out, not left
+  // blank: a passage with fewer questions has no question 8, and a reader must
+  // not take an empty cell for an unmarked one.
+  const own = learnerQuestionCount(row);
+  const questionCells = questionKeys(n)
+    .map((q, i) => {
+      if (i >= own) return `<td class="c q na"></td>`;
+      const a = answers?.[q];
+      const mark = a?.correct === true ? "✓" : a?.correct === false ? "✗" : "";
+      return `<td class="c q">${mark}</td>`;
+    })
+    .join("");
 
   const name = [student.last_name, student.first_name].filter(Boolean).join(", ");
 
@@ -178,17 +235,20 @@ function learnerRow(row: PhilIriMatrixLearner, index: number): string {
 }
 
 /** One MALE / FEMALE block: repeated header, band row, then the learner rows. */
-function sexBlock(label: string, rows: PhilIriMatrixLearner[]): string {
-  const COLSPAN =
-    2 + PHILIRI_MISCUE_TYPES.length + 1 + 1 + 2 + PHILIRI_COMPREHENSION_QUESTIONS + 3 + 1;
+function sexBlock(
+  label: string,
+  rows: PhilIriMatrixLearner[],
+  n: number,
+): string {
+  const COLSPAN = 2 + PHILIRI_MISCUE_TYPES.length + 1 + 1 + 2 + n + 3 + 1;
   const body =
     rows.length > 0
-      ? rows.map(learnerRow).join("")
+      ? rows.map((row, i) => learnerRow(row, i, n)).join("")
       : `<tr><td class="c empty" colspan="${COLSPAN}">No learners</td></tr>`;
 
   return `<table class="matrix">
-    ${COLGROUP}
-    <thead>${headerRows()}</thead>
+    ${colgroup(n)}
+    <thead>${headerRows(n)}</thead>
     <tbody>
       <tr class="band"><td></td><td colspan="${COLSPAN - 1}">${esc(label)}</td></tr>
       ${body}
@@ -222,6 +282,8 @@ export async function generatePhilIriMatrix(
 
   const males = learners.filter((l) => l.student.gender === "male");
   const females = learners.filter((l) => l.student.gender === "female");
+  // One column count for the whole page, so the Male and Female blocks line up.
+  const questionCount = pageQuestionCount(learners);
 
   const phaseMarks = PHASE_COLUMNS.map(
     (p) => `${esc(p.label)} <span class="mark">${p.phase === phase ? "✓" : "&nbsp;&nbsp;"}</span>`,
@@ -248,6 +310,15 @@ table.matrix th { background: #e8e8e8; text-align: center; font-weight: bold; ve
 /* Narrow columns whose labels ("Mispronunciation", "Instructional") must wrap
    rather than overflow the fixed width. */
 th.tight { font-size: 6.5pt; line-height: 1.05; }
+${
+  questionCount > PHILIRI_COMPREHENSION_QUESTIONS
+    ? `/* Past the standard 7 the question columns are narrower than the padding
+   the workbook was tuned to — trim it so the ✓ / ✗ still fits the cell. */
+table.matrix th.q, table.matrix td.q { padding: 2px 0; font-size: 6.5pt; }`
+    : ""
+}
+/* This learner's passage has no such question. */
+td.na { background: #d9d9d9; }
 table.matrix td { line-height: 1.1; }
 td.c { text-align: center; }
 tr.band td { font-weight: bold; text-transform: uppercase; background: #f4f4f4; }
@@ -276,8 +347,8 @@ ${buildDepEdHeaderWithLogos(`
   <div><strong>Teacher:</strong> ${esc(teacherName)}</div>
   <div>${phaseMarks}</div>
 </div>
-${sexBlock("Male", males)}
-${sexBlock("Female", females)}
+${sexBlock("Male", males, questionCount)}
+${sexBlock("Female", females, questionCount)}
 <div class="sigs">
   <div class="sig">
     <div class="sig-label">Prepared by:</div>

@@ -1199,6 +1199,7 @@ export interface PhilIriMaterial {
   passage_title: string | null;
   passage_text: string | null;
   word_count: number;
+  question_count: number; // comprehension questions on this passage (migration 152)
   instructions: string | null;
   file_url: string | null; // uploaded DepEd material (image / PDF)
   file_name: string | null;

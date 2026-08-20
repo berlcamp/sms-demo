@@ -25,7 +25,8 @@ import {
   philIriIndividualFormCode,
   philIriPhaseLabel,
   philIriScreeningRemark,
-  PHILIRI_COMPREHENSION_QUESTIONS,
+  philIriQuestionCount,
+  philIriRecordQuestionCount,
   PHILIRI_PHASES,
   type PhilIriLevel,
 } from "@/lib/constants";
@@ -54,6 +55,7 @@ import {
   PassageFormValue,
   passageComputed,
   PhilIriPassageFields,
+  questionKeysOf,
   totalSecondsOf,
 } from "./PhilIriPassageFields";
 
@@ -92,29 +94,44 @@ interface Props {
 
 // Normalize a stored comprehension_answers entry into the typed {correct,type}
 // shape, tolerating legacy free-text values (which carry no correctness/type).
+//
+// `count` is the number of questions the read was SCORED AGAINST — the record's
+// own comprehension_total, falling back to the material's current count. A
+// stored key past that count is still kept rather than dropped: if a passage is
+// later edited from 10 questions down to 7, the teacher must still see the q8-10
+// marks that produced the score already saved on the record.
 function normalizeAnswers(
   stored: PhilIriRecord["comprehension_answers"],
+  count: number,
 ): Record<string, PhilIriComprehensionAnswer> {
-  const base = emptyAnswers();
+  const base = emptyAnswers(count);
   if (!stored) return base;
   Object.entries(stored).forEach(([q, v]) => {
-    if (!base[q]) return; // ignore keys beyond the current question count
-    if (v && typeof v === "object" && "type" in v) {
-      base[q] = {
-        correct: (v as PhilIriComprehensionAnswer).correct ?? null,
-        type: (v as PhilIriComprehensionAnswer).type ?? base[q].type,
-      };
-    }
+    if (!v || typeof v !== "object" || !("type" in v)) return;
+    const fallback = base[q] ?? {
+      correct: null,
+      type: "literal" as PhilIriComprehensionAnswer["type"],
+    };
+    base[q] = {
+      correct: (v as PhilIriComprehensionAnswer).correct ?? null,
+      type: (v as PhilIriComprehensionAnswer).type ?? fallback.type,
+    };
   });
   return base;
 }
 
-function valueFromRecord(rec: PhilIriRecord): PassageFormValue {
+function valueFromRecord(
+  rec: PhilIriRecord,
+  material: PhilIriMaterial,
+): PassageFormValue {
   const total = rec.reading_time_seconds;
   return {
     minutes: total !== null && total !== undefined ? Math.floor(total / 60) : null,
     seconds: total !== null && total !== undefined ? total % 60 : null,
-    answers: normalizeAnswers(rec.comprehension_answers),
+    answers: normalizeAnswers(
+      rec.comprehension_answers,
+      philIriRecordQuestionCount(rec, material),
+    ),
     miscues: {
       ...emptyMiscues(),
       ...Object.fromEntries(
@@ -208,7 +225,7 @@ export function PhilIriLadderModal({
           recordId: String(r.id),
           phase: r.phase,
           material,
-          value: valueFromRecord(r),
+          value: valueFromRecord(r, material),
           overallLevel: r.overall_reading_level,
           wordReadingLevel: r.word_reading_level,
           comprehensionLevel: r.comprehension_level,
@@ -308,7 +325,9 @@ export function PhilIriLadderModal({
     setEditing({
       material,
       recordId: existing?.recordId ?? null,
-      value: existing ? existing.value : emptyPassageValue(),
+      value: existing
+        ? existing.value
+        : emptyPassageValue(philIriQuestionCount(material)),
     });
   };
 
@@ -341,7 +360,9 @@ export function PhilIriLadderModal({
         reading_rate: computed.readingRate,
         // Raw comprehension score is derived from the per-question ✓ marks.
         comprehension_raw: rawCorrectOf(value.answers),
-        comprehension_total: PHILIRI_COMPREHENSION_QUESTIONS,
+        // Snapshot the denominator this read was scored against, so re-editing
+        // the passage's question count later cannot rescore a filled-in form.
+        comprehension_total: questionKeysOf(value).length,
         comprehension_answers: value.answers,
         comprehension_score: computed.comprehensionScore,
         comprehension_level: computed.comprehensionLevel,
@@ -396,6 +417,7 @@ export function PhilIriLadderModal({
       phase: read.phase,
       readingTimeSeconds: totalSecondsOf(read.value),
       comprehensionRaw: rawCorrectOf(read.value.answers),
+      comprehensionTotal: questionKeysOf(read.value).length,
       comprehensionAnswers: read.value.answers,
       miscueCounts: read.value.miscues,
       dateAssessed: read.value.dateAssessed || null,
@@ -406,9 +428,7 @@ export function PhilIriLadderModal({
   // shared by the on-screen ISR table and the printed form.
   const isrRows: PhilIriIsrRow[] = reads.map((r) => {
     const c = passageComputed(r.material, r.value);
-    const keys = Object.keys(r.value.answers).sort(
-      (a, b) => Number(a.replace(/\D/g, "")) - Number(b.replace(/\D/g, "")),
-    );
+    const keys = questionKeysOf(r.value);
     return {
       grade: r.material.grade_level,
       title: r.material.title,

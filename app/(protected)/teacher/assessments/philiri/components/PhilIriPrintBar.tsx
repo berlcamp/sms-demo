@@ -42,13 +42,14 @@ interface IndividualRow {
   word_reading_level: string | null;
   comprehension_answers: Record<string, PhilIriComprehensionAnswer> | null;
   comprehension_raw: number | null;
+  comprehension_total: number | null;
   comprehension_score: number | null;
   comprehension_level: string | null;
   material: { grade_level: number } | null;
 }
 
 const INDIVIDUAL_COLUMNS =
-  "student_id, overall_reading_level, miscue_counts, miscues, word_reading_score, word_reading_level, comprehension_answers, comprehension_raw, comprehension_score, comprehension_level, material:sms_philiri_materials!inner(grade_level, language)";
+  "student_id, overall_reading_level, miscue_counts, miscues, word_reading_score, word_reading_level, comprehension_answers, comprehension_raw, comprehension_total, comprehension_score, comprehension_level, material:sms_philiri_materials!inner(grade_level, language)";
 
 const emptyTally = (): PhilIriTally => ({ M: 0, F: 0, T: 0 });
 
@@ -175,6 +176,7 @@ export function PhilIriPrintBar({
               : Number(frontier.word_reading_score),
           wordReadingLevel: frontier?.word_reading_level ?? null,
           answers: frontier?.comprehension_answers ?? null,
+          comprehensionTotal: frontier?.comprehension_total ?? null,
           comprehensionRaw: frontier?.comprehension_raw ?? null,
           comprehensionScore:
             frontier?.comprehension_score === null ||

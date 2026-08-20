@@ -350,9 +350,59 @@ export const PHILIRI_DEFAULT_QUESTION_TYPES: PhilIriQuestionType[] = [
   "critical",
 ];
 
-/** Default question type for the 0-based question index (fallback: literal). */
-export function philIriDefaultQuestionType(index: number): PhilIriQuestionType {
-  return PHILIRI_DEFAULT_QUESTION_TYPES[index] ?? "literal";
+// Share of an n-question passage given to each type when laying out the default
+// L/I/C spread. Largest-remainder apportionment over these weights reproduces
+// PHILIRI_DEFAULT_QUESTION_TYPES exactly at n = 7 (3 L / 2 I / 2 C), so a
+// 7-question passage is unchanged by the variable-count support.
+const PHILIRI_QUESTION_TYPE_WEIGHTS: Record<PhilIriQuestionType, number> = {
+  literal: 0.4,
+  inferential: 0.3,
+  critical: 0.3,
+};
+
+/**
+ * Default L/I/C layout for a passage with `count` comprehension questions,
+ * apportioned by largest remainder so every question gets a type and the mix
+ * stays literal-led. Guidance only — the teacher retypes any question while
+ * scoring, and the stored answer carries its own type.
+ */
+export function philIriDefaultQuestionTypes(
+  count: number,
+): PhilIriQuestionType[] {
+  const n = Math.max(0, Math.trunc(count));
+  if (n === 0) return [];
+
+  const quotas = PHILIRI_QUESTION_TYPES.map((type) => {
+    const exact = n * PHILIRI_QUESTION_TYPE_WEIGHTS[type];
+    return { type, whole: Math.floor(exact), remainder: exact - Math.floor(exact) };
+  });
+  let assigned = quotas.reduce((sum, q) => sum + q.whole, 0);
+  // Hand the leftover questions to the largest fractional parts, ties going to
+  // the earlier (more literal) type.
+  [...quotas]
+    .sort((a, b) => b.remainder - a.remainder)
+    .forEach((q) => {
+      if (assigned >= n) return;
+      quotas.find((x) => x.type === q.type)!.whole += 1;
+      assigned += 1;
+    });
+
+  return quotas.flatMap((q) => new Array<PhilIriQuestionType>(q.whole).fill(q.type));
+}
+
+/**
+ * Default question type for the 0-based question index on a passage of `count`
+ * questions (fallback: literal). Defaults to the standard 7-question layout so
+ * pre-152 callers that know no count keep their behaviour.
+ */
+export function philIriDefaultQuestionType(
+  index: number,
+  count: number = PHILIRI_COMPREHENSION_QUESTIONS,
+): PhilIriQuestionType {
+  if (count === PHILIRI_COMPREHENSION_QUESTIONS) {
+    return PHILIRI_DEFAULT_QUESTION_TYPES[index] ?? "literal";
+  }
+  return philIriDefaultQuestionTypes(count)[index] ?? "literal";
 }
 
 // ---------------------------------------------------------------------------
@@ -602,7 +652,48 @@ export const PHILIRI_SELF_CORRECTION = {
 } as const;
 
 // Standard number of comprehension questions on the individual record form.
+// This is the DEFAULT ONLY (and the pre-152 assumption): DepEd's graded passages
+// carry different question counts per grade level and per set, so the authored
+// count lives on the material (sms_philiri_materials.question_count, migration
+// 152) and a filled-in form snapshots it into sms_philiri_records.
+// comprehension_total. Read it through philIriQuestionCount() / the record's own
+// total, never as a bare constant.
 export const PHILIRI_COMPREHENSION_QUESTIONS = 7;
+
+// A passage may legally carry 1-20 comprehension questions (migration 152's
+// CHECK). Kept here so the material form and the app agree on the bounds.
+export const PHILIRI_QUESTION_COUNT_MIN = 1;
+export const PHILIRI_QUESTION_COUNT_MAX = 20;
+
+/**
+ * How many comprehension questions a passage carries. Falls back to the
+ * standard 7 for a material authored before migration 152 (or one read through
+ * a projection that omitted the column), so nothing renders zero rows.
+ */
+export function philIriQuestionCount(
+  material: { question_count?: number | null } | null | undefined,
+): number {
+  const n = Number(material?.question_count);
+  return Number.isFinite(n) && n > 0
+    ? Math.trunc(n)
+    : PHILIRI_COMPREHENSION_QUESTIONS;
+}
+
+/**
+ * The denominator a SAVED passage read was scored against. The record's own
+ * comprehension_total wins over the material's current count — editing a
+ * passage's question count must never retroactively rescore a form that was
+ * already filled in on paper (the 121 career_stage rule).
+ */
+export function philIriRecordQuestionCount(
+  record: { comprehension_total?: number | null } | null | undefined,
+  material: { question_count?: number | null } | null | undefined,
+): number {
+  const stored = Number(record?.comprehension_total);
+  return Number.isFinite(stored) && stored > 0
+    ? Math.trunc(stored)
+    : philIriQuestionCount(material);
+}
 
 /**
  * Suggested STARTING grade for a learner's individual (oral reading) test,

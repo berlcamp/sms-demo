@@ -22,8 +22,11 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getGradeLevelLabel,
+  PHILIRI_COMPREHENSION_QUESTIONS,
   PHILIRI_GRADES,
   PHILIRI_LANGUAGES,
+  PHILIRI_QUESTION_COUNT_MAX,
+  PHILIRI_QUESTION_COUNT_MIN,
 } from "@/lib/constants";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hook";
 import { addItem, updateList } from "@/lib/redux/listSlice";
@@ -60,6 +63,9 @@ export const AddModal = ({
   const [language, setLanguage] = useState("");
   const [setLabel, setSetLabel] = useState("");
   const [wordCount, setWordCount] = useState(0);
+  const [questionCount, setQuestionCount] = useState(
+    PHILIRI_COMPREHENSION_QUESTIONS,
+  );
   const [instructions, setInstructions] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
@@ -75,6 +81,9 @@ export const AddModal = ({
       setLanguage(editData.language || "");
       setSetLabel(editData.set_label || "");
       setWordCount(editData.word_count || 0);
+      setQuestionCount(
+        editData.question_count || PHILIRI_COMPREHENSION_QUESTIONS,
+      );
       setInstructions(editData.instructions || "");
       setIsActive(editData.is_active ?? true);
       setFileUrl(editData.file_url || null);
@@ -86,6 +95,7 @@ export const AddModal = ({
       setLanguage("");
       setSetLabel("");
       setWordCount(0);
+      setQuestionCount(PHILIRI_COMPREHENSION_QUESTIONS);
       setInstructions("");
       setIsActive(true);
       setFileUrl(null);
@@ -101,6 +111,13 @@ export const AddModal = ({
     if (!language) return toast.error("Language is required.");
     if (!wordCount || wordCount <= 0)
       return toast.error("Passage word count must be greater than 0.");
+    if (
+      questionCount < PHILIRI_QUESTION_COUNT_MIN ||
+      questionCount > PHILIRI_QUESTION_COUNT_MAX
+    )
+      return toast.error(
+        `Number of comprehension questions must be between ${PHILIRI_QUESTION_COUNT_MIN} and ${PHILIRI_QUESTION_COUNT_MAX}.`,
+      );
     if (!file && !fileUrl)
       return toast.error("Upload the material file (image or PDF).");
 
@@ -112,6 +129,7 @@ export const AddModal = ({
         language,
         set_label: setLabel.trim() || null,
         word_count: wordCount,
+        question_count: questionCount,
         instructions: instructions.trim() || null,
         is_active: isActive,
       };
@@ -270,6 +288,27 @@ export const AddModal = ({
                 onChange={(e) => setWordCount(Number(e.target.value || 0))}
                 disabled={isSubmitting}
               />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">
+                Comprehension questions <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="number"
+                min={PHILIRI_QUESTION_COUNT_MIN}
+                max={PHILIRI_QUESTION_COUNT_MAX}
+                value={questionCount}
+                onChange={(e) =>
+                  setQuestionCount(
+                    Number(e.target.value || PHILIRI_COMPREHENSION_QUESTIONS),
+                  )
+                }
+                disabled={isSubmitting}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                How many questions this passage asks on Form 3A/3B. Changing it
+                does not rescore passage reads already recorded.
+              </p>
             </div>
             <div className="flex items-end gap-2 pb-1">
               <Switch

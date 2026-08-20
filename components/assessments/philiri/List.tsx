@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getGradeLevelLabel } from "@/lib/constants";
+import { getGradeLevelLabel, philIriQuestionCount } from "@/lib/constants";
 import { useAppDispatch } from "@/lib/redux/hook";
 import { deleteItem } from "@/lib/redux/listSlice";
 import { supabase } from "@/lib/supabase/client";
@@ -98,6 +98,7 @@ export const List = ({ schoolId }: { schoolId: number | null }) => {
               <th className="app__table_th">Language</th>
               <th className="app__table_th">Set</th>
               <th className="app__table_th">Words</th>
+              <th className="app__table_th">Questions</th>
               <th className="app__table_th">File</th>
               <th className="app__table_th">Status</th>
               <th className="app__table_th_right">Actions</th>
@@ -115,6 +116,9 @@ export const List = ({ schoolId }: { schoolId: number | null }) => {
                 <td className="app__table_td">{item.language}</td>
                 <td className="app__table_td">{item.set_label ?? "-"}</td>
                 <td className="app__table_td">{item.word_count}</td>
+                <td className="app__table_td">
+                  {philIriQuestionCount(item)}
+                </td>
                 <td className="app__table_td">
                   {item.file_url ? (
                     <a

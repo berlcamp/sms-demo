@@ -4,7 +4,7 @@ import {
   overallReadingLevel,
   philIriIndividualFormCode,
   philIriPhaseLabel,
-  PHILIRI_COMPREHENSION_QUESTIONS,
+  philIriQuestionCount,
   PHILIRI_MISCUE_TYPES,
   PHILIRI_SELF_CORRECTION,
   PHILIRI_QUESTION_TYPE_ABBR,
@@ -28,6 +28,11 @@ export interface PhilIriIndividualParams {
   phase: string;
   readingTimeSeconds: number | null;
   comprehensionRaw: number | null;
+  /**
+   * Questions this passage read was scored against. Omit for a form recorded
+   * before migration 152, which falls back to the material's authored count.
+   */
+  comprehensionTotal?: number | null;
   comprehensionAnswers: Record<string, PhilIriComprehensionAnswer>;
   miscueCounts: Record<string, number | null>;
   dateAssessed: string | null;
@@ -73,6 +78,12 @@ export async function generatePhilIriIndividual(
   const isFilipino = material.language === "Filipino";
   const selectionLabel = isFilipino ? "Seleksyon" : "Selection";
   const wc = Number(material.word_count);
+  // The denominator the read was scored against, not a fixed 7: DepEd passages
+  // carry different question counts per grade level and set (migration 152).
+  const questionTotal =
+    params.comprehensionTotal && params.comprehensionTotal > 0
+      ? Math.trunc(params.comprehensionTotal)
+      : philIriQuestionCount(material);
 
   // Self-corrections are tallied but are not miscues — excluded from the total.
   const miscueValues = Object.entries(miscueCounts)
@@ -89,7 +100,9 @@ export async function generatePhilIriIndividual(
   const compScore =
     comprehensionRaw === null
       ? null
-      : round2((comprehensionRaw / PHILIRI_COMPREHENSION_QUESTIONS) * 100);
+      : questionTotal > 0
+        ? round2((comprehensionRaw / questionTotal) * 100)
+        : null;
   const readingRate =
     readingTimeSeconds && readingTimeSeconds > 0 && wc > 0
       ? round2((wc * 60) / readingTimeSeconds)
@@ -112,7 +125,7 @@ export async function generatePhilIriIndividual(
         ).padStart(2, "0")}`;
 
   const answersHtml = Array.from(
-    { length: PHILIRI_COMPREHENSION_QUESTIONS },
+    { length: questionTotal },
     (_, i) => {
       const a = comprehensionAnswers[`q${i + 1}`];
       const mark = a?.correct === true ? "✓" : a?.correct === false ? "✗" : "";
@@ -167,7 +180,9 @@ ${buildDepEdHeaderWithLogos(
 <div class="part">PART A</div>
 <div class="row"><strong>Total Time in Reading the Text:</strong> ${escapeHtml(timeLabel)} &nbsp;&nbsp;
   <strong>Reading Rate:</strong> ${readingRate ?? ""} words per minute</div>
-<div class="row"><strong>Responses to Questions: Score:</strong> ${comprehensionRaw ?? ""} &nbsp;
+<div class="row"><strong>Responses to Questions: Score:</strong> ${
+  comprehensionRaw === null ? "" : `${comprehensionRaw} / ${questionTotal}`
+} &nbsp;
   <strong>%=</strong> ${compScore ?? ""} &nbsp;
   <strong>Comprehension Level:</strong> ${escapeHtml(compLevel)}</div>
 <div class="answers">${answersHtml}</div>

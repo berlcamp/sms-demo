@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import {
   philIriDefaultQuestionType,
+  philIriQuestionCount,
   PHILIRI_COMPREHENSION_QUESTIONS,
   PHILIRI_MISCUE_TYPES,
   PHILIRI_SELF_CORRECTION,
@@ -41,22 +42,42 @@ export const emptyMiscues = (): Record<string, number | null> =>
     ),
   );
 
-export const emptyAnswers = (): Record<string, PhilIriComprehensionAnswer> =>
+/**
+ * Blank q1..qn answer map for a passage with `count` questions, pre-typed with
+ * the default L/I/C spread. The count comes from the material (migration 152) —
+ * it is NOT a fixed 7, since DepEd's graded passages differ per grade and set.
+ */
+export const emptyAnswers = (
+  count: number = PHILIRI_COMPREHENSION_QUESTIONS,
+): Record<string, PhilIriComprehensionAnswer> =>
   Object.fromEntries(
-    Array.from({ length: PHILIRI_COMPREHENSION_QUESTIONS }, (_, i) => [
+    Array.from({ length: Math.max(1, Math.trunc(count)) }, (_, i) => [
       `q${i + 1}`,
-      { correct: null, type: philIriDefaultQuestionType(i) },
+      { correct: null, type: philIriDefaultQuestionType(i, count) },
     ]),
   );
 
-export const emptyPassageValue = (): PassageFormValue => ({
+export const emptyPassageValue = (
+  count: number = PHILIRI_COMPREHENSION_QUESTIONS,
+): PassageFormValue => ({
   minutes: null,
   seconds: null,
-  answers: emptyAnswers(),
+  answers: emptyAnswers(count),
   miscues: emptyMiscues(),
   dateAssessed: "",
   remarks: "",
 });
+
+/**
+ * Question keys of a passage form value, ordered q1..qn. Read off the value
+ * itself rather than off the material, so a read SAVED against a different
+ * question count still renders every mark the teacher made.
+ */
+export function questionKeysOf(v: PassageFormValue): string[] {
+  return Object.keys(v.answers).sort(
+    (a, b) => Number(a.replace(/\D/g, "")) - Number(b.replace(/\D/g, "")),
+  );
+}
 
 export function totalSecondsOf(v: PassageFormValue): number | null {
   return v.minutes === null && v.seconds === null
@@ -68,12 +89,14 @@ export function passageComputed(
   material: PhilIriMaterial,
   v: PassageFormValue,
 ): PhilIriIndividual {
-  // Raw comprehension score is derived from the per-question ✓ marks.
+  // Raw comprehension score is derived from the per-question ✓ marks, over the
+  // number of questions the form actually carries — which for a saved read is
+  // the count it was scored against, not the material's current count.
   return computeIndividual(
     Number(material.word_count),
     v.miscues,
     rawCorrectOf(v.answers),
-    PHILIRI_COMPREHENSION_QUESTIONS,
+    questionKeysOf(v).length || philIriQuestionCount(material),
     totalSecondsOf(v),
   );
 }
@@ -84,11 +107,6 @@ interface Props {
   onChange: (patch: Partial<PassageFormValue>) => void;
   disabled?: boolean;
 }
-
-const QUESTION_KEYS = Array.from(
-  { length: PHILIRI_COMPREHENSION_QUESTIONS },
-  (_, i) => `q${i + 1}`,
-);
 
 /**
  * Presentational field set for one graded-passage read (Phil-IRI Form 3A/3B).
@@ -105,6 +123,8 @@ export function PhilIriPassageFields({
 }: Props) {
   const computed = passageComputed(material, value);
   const rawCorrect = rawCorrectOf(value.answers);
+  const questionKeys = questionKeysOf(value);
+  const questionTotal = questionKeys.length || philIriQuestionCount(material);
 
   const setMiscue = (key: string, raw: string) =>
     onChange({
@@ -174,10 +194,10 @@ export function PhilIriPassageFields({
           </div>
           <div>
             <Label className="mb-1 block text-xs">
-              Score (of {PHILIRI_COMPREHENSION_QUESTIONS})
+              Score (of {questionTotal})
             </Label>
             <Input
-              value={`${rawCorrect}/${PHILIRI_COMPREHENSION_QUESTIONS}`}
+              value={`${rawCorrect}/${questionTotal}`}
               disabled
               readOnly
             />
@@ -214,7 +234,7 @@ export function PhilIriPassageFields({
                 </tr>
               </thead>
               <tbody>
-                {QUESTION_KEYS.map((q, i) => {
+                {questionKeys.map((q, i) => {
                   const a = answerOf(q);
                   return (
                     <tr key={q} className="border-t">
