@@ -141,78 +141,77 @@ export default function Page() {
         </p>
       ) : (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-muted-foreground">
-                  <th className="text-left font-medium py-2 pr-3">Teacher</th>
-                  {WEEKDAYS.map((d) => (
-                    <th
-                      key={d.idx}
-                      className="text-right font-medium py-2 px-2 w-14"
-                    >
-                      {d.label}
+          <div className="app__table_shell">
+            <div className="app__table_wrapper">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left font-medium">Teacher</th>
+                    {WEEKDAYS.map((d) => (
+                      <th
+                        key={d.idx}
+                        className="text-right font-medium w-14"
+>
+                        {d.label}
+                      </th>
+                    ))}
+                    <th className="text-right font-medium w-24">
+                      Advisorship
                     </th>
-                  ))}
-                  <th className="text-right font-medium py-2 px-2 w-24">
-                    Advisorship
-                  </th>
-                  <th className="text-right font-medium py-2 px-2 w-16">
-                    ARAL
-                  </th>
-                  <th className="text-right font-medium py-2 pl-2 w-20">
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleLoads.map((t) => {
-                  const advisorshipMin = advisorshipWeeklyMinutes(t);
-                  const aralMin = aralWeeklyMinutes(t);
-                  const weekTotal = teacherWeeklyTotal(t);
-                  return (
-                    <tr
-                      key={t.teacherId}
-                      className="border-b last:border-0 hover:bg-muted/40"
-                    >
-                      <td className="py-2 pr-3 font-medium">
-                        {t.teacherName}
-                      </td>
-                      {WEEKDAYS.map((d) => {
-                        const m = t.minutes[d.idx] || 0;
-                        return (
-                          <td
-                            key={d.idx}
-                            className={`text-right py-2 px-2 ${
-                              m === 0 ? "text-muted-foreground/40" : ""
-                            }`}
-                          >
-                            {m}
-                          </td>
-                        );
-                      })}
-                      <td
-                        className={`text-right py-2 px-2 ${
-                          advisorshipMin === 0 ? "text-muted-foreground/40" : ""
-                        }`}
-                      >
-                        {advisorshipMin}
-                      </td>
-                      <td
-                        className={`text-right py-2 px-2 ${
-                          aralMin === 0 ? "text-muted-foreground/40" : ""
-                        }`}
-                      >
-                        {aralMin}
-                      </td>
-                      <td className="text-right py-2 pl-2 font-semibold">
-                        {weekTotal}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    <th className="text-right font-medium w-16">
+                      ARAL
+                    </th>
+                    <th className="text-right font-medium w-20">
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleLoads.map((t) => {
+                    const advisorshipMin = advisorshipWeeklyMinutes(t);
+                    const aralMin = aralWeeklyMinutes(t);
+                    const weekTotal = teacherWeeklyTotal(t);
+                    return (
+                      <tr key={t.teacherId}>
+                        <td className="font-medium">
+                          {t.teacherName}
+                        </td>
+                        {WEEKDAYS.map((d) => {
+                          const m = t.minutes[d.idx] || 0;
+                          return (
+                            <td
+                              key={d.idx}
+                              className={`text-right ${
+                                m === 0 ? "text-muted-foreground/40" : ""
+                              }`}
+>
+                              {m}
+                            </td>
+                          );
+                        })}
+                        <td
+                          className={`text-right ${
+                            advisorshipMin === 0 ? "text-muted-foreground/40" : ""
+                          }`}
+>
+                          {advisorshipMin}
+                        </td>
+                        <td
+                          className={`text-right ${
+                            aralMin === 0 ? "text-muted-foreground/40" : ""
+                          }`}
+>
+                          {aralMin}
+                        </td>
+                        <td className="text-right font-semibold">
+                          {weekTotal}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground italic">
             Advisorship = 60 min/day × 5 days per advisory class. ARAL = 30

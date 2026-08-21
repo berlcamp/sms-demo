@@ -386,6 +386,46 @@
   .app__table_cell_subtitle {
     @apply text-xs text-muted-foreground mt-0.5;
   }
+
+  /*
+   * The same dress as .app__table, for a table built from the shadcn <Table>
+   * primitive rather than raw markup — the report pages. Element selectors, so
+   * a page's own utility classes on a th/td still win: alignment (text-right on
+   * a numeric column) and per-row backgrounds (a bg-muted total row) are
+   * deliberately NOT set here, or they would be overridden wholesale.
+   *
+   * Cell padding is px-4 rather than .app__table_td's px-6: a report is a wide
+   * numeric matrix — the division enrollment table alone runs to fourteen grade
+   * columns — and the module lists' roomier gutter would push it off screen.
+   */
+  .app__table_shell {
+    @apply overflow-hidden rounded-lg border border-border bg-card shadow-sm;
+  }
+  /* Use app__table_dress alone where a Card already supplies the chrome. */
+  .app__table_shell table,
+  .app__table_dress table {
+    @apply w-full;
+  }
+  .app__table_shell thead,
+  .app__table_dress thead {
+    @apply bg-muted/50;
+  }
+  .app__table_shell thead th,
+  .app__table_dress thead th {
+    @apply px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground;
+  }
+  .app__table_shell tbody,
+  .app__table_dress tbody {
+    @apply divide-y divide-border bg-background;
+  }
+  .app__table_shell tbody tr,
+  .app__table_dress tbody tr {
+    @apply transition-colors hover:bg-muted/30;
+  }
+  .app__table_shell tbody td,
+  .app__table_dress tbody td {
+    @apply px-4 py-2;
+  }
   .app__badge {
     @apply inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary;
   }

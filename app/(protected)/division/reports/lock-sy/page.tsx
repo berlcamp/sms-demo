@@ -271,7 +271,7 @@ export default function Page() {
                 No submissions match the current filter.
               </p>
             ) : (
-              <div className="rounded-md border overflow-x-auto">
+              <div className="app__table_shell">
                 <Table>
                   <TableHeader>
                     <TableRow>

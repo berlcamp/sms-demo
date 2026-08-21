@@ -155,24 +155,24 @@ export function EfficiencyIndicators({
         <KpiTable
           head={
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Grade</th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th className="text-left font-medium">Grade</th>
+              <th className="text-right font-medium">
                 Enrollment SY {previousSchoolYear}
               </th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th className="text-right font-medium">
                 Repeaters SY {schoolYear}
               </th>
-              <th className="px-3 py-2 text-right font-medium">Promotion</th>
-              <th className="px-3 py-2 text-right font-medium">Repetition</th>
-              <th className="px-3 py-2 text-right font-medium">School leaver</th>
-              <th className="px-3 py-2 text-right font-medium">Survival</th>
-              <th className="px-3 py-2 text-right font-medium">Pupil-years</th>
+              <th className="text-right font-medium">Promotion</th>
+              <th className="text-right font-medium">Repetition</th>
+              <th className="text-right font-medium">School leaver</th>
+              <th className="text-right font-medium">Survival</th>
+              <th className="text-right font-medium">Pupil-years</th>
             </tr>
           }
         >
           {rows.map((row) => (
-            <tr key={row.gradeLevel} className="hover:bg-muted/40">
-              <td className="px-3 py-2 font-medium">
+            <tr key={row.gradeLevel}>
+              <td className="font-medium">
                 {getGradeLevelLabel(row.gradeLevel)}
                 {row.isTerminal && (
                   <span className="ml-1.5 text-[10px] text-muted-foreground">
@@ -180,25 +180,25 @@ export function EfficiencyIndicators({
                   </span>
                 )}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+              <td className="text-right tabular-nums text-muted-foreground">
                 {formatNumber(row.enrollmentPrevious)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+              <td className="text-right tabular-nums text-muted-foreground">
                 {formatNumber(row.repeatersCurrent)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums font-medium">
+              <td className="text-right tabular-nums font-medium">
                 {formatPercent(row.promotionRate)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="text-right tabular-nums">
                 {formatPercent(row.repetitionRate)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="text-right tabular-nums">
                 {formatPercent(row.schoolLeaverRate)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="text-right tabular-nums">
                 {formatPercent(survivalByGrade.get(row.gradeLevel) ?? null)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+              <td className="text-right tabular-nums text-muted-foreground">
                 {formatNumber(pupilYearsByGrade.get(row.gradeLevel) ?? null)}
               </td>
             </tr>
@@ -272,45 +272,45 @@ export function EfficiencyIndicators({
           <KpiTable
             head={
               <tr>
-                <th className="px-3 py-2 text-left font-medium">Grade</th>
-                <th className="px-3 py-2 text-right font-medium">
+                <th className="text-left font-medium">Grade</th>
+                <th className="text-right font-medium">
                   Enrollment SY {previousSchoolYear}
                 </th>
-                <th className="px-3 py-2 text-right font-medium">Repeaters</th>
-                <th className="px-3 py-2 text-right font-medium">
+                <th className="text-right font-medium">Repeaters</th>
+                <th className="text-right font-medium">
                   Repetition Rate
                 </th>
-                <th className="px-3 py-2 text-right font-medium">
+                <th className="text-right font-medium">
                   Enrollment SY {schoolYear}
                 </th>
-                <th className="px-3 py-2 text-right font-medium">Dropouts</th>
-                <th className="px-3 py-2 text-right font-medium">
+                <th className="text-right font-medium">Dropouts</th>
+                <th className="text-right font-medium">
                   Simple Dropout Rate
                 </th>
               </tr>
             }
           >
             {allGradeRows.map((row) => (
-              <tr key={row.grade} className="hover:bg-muted/40">
-                <td className="px-3 py-2 font-medium">
+              <tr key={row.grade}>
+                <td className="font-medium">
                   {getGradeLevelLabel(row.grade)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                <td className="text-right tabular-nums text-muted-foreground">
                   {formatNumber(row.enrollmentPrevious)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className="text-right tabular-nums">
                   {formatNumber(row.repeaters)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums font-medium">
+                <td className="text-right tabular-nums font-medium">
                   {formatPercent(row.repetitionRate)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                <td className="text-right tabular-nums text-muted-foreground">
                   {formatNumber(row.enrollmentCurrent)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className="text-right tabular-nums">
                   {formatNumber(row.dropouts)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums font-medium">
+                <td className="text-right tabular-nums font-medium">
                   {formatPercent(row.simpleDropoutRate)}
                 </td>
               </tr>
@@ -347,14 +347,14 @@ export function EfficiencyIndicators({
         <KpiTable
           head={
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Grade</th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th className="text-left font-medium">Grade</th>
+              <th className="text-right font-medium">
                 BOSY enrollment SY {schoolYear}
               </th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th className="text-right font-medium">
                 EOSY promotes / graduates
               </th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th className="text-right font-medium">
                 Promotion / Graduation Rate
               </th>
             </tr>
@@ -366,8 +366,8 @@ export function EfficiencyIndicators({
               graduation: isTerminal && cycle.graduates,
             });
             return (
-              <tr key={grade} className="hover:bg-muted/40">
-                <td className="px-3 py-2 font-medium">
+              <tr key={grade}>
+                <td className="font-medium">
                   {getGradeLevelLabel(grade)}
                   {isTerminal && (
                     <span className="ml-1.5 text-[10px] text-muted-foreground">
@@ -375,13 +375,13 @@ export function EfficiencyIndicators({
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                <td className="text-right tabular-nums text-muted-foreground">
                   {formatNumber(result.denominator)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className="text-right tabular-nums">
                   {formatNumber(result.numerator)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums font-medium">
+                <td className="text-right tabular-nums font-medium">
                   {formatPercent(result.value)}
                 </td>
               </tr>

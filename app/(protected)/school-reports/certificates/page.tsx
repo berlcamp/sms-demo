@@ -516,40 +516,39 @@ export default function Page() {
                 {selectedLearners.length === 1 ? "" : "s"} will be generated —
                 one page per learner.
               </p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-muted-foreground">
-                      <th className="text-left font-medium py-2 pr-3 w-8">#</th>
-                      <th className="text-left font-medium py-2 pr-3">
-                        Learner
-                      </th>
-                      <th className="text-left font-medium py-2 px-2">LRN</th>
-                      <th className="text-left font-medium py-2 px-2">Grade</th>
-                      <th className="text-left font-medium py-2 pl-2">
-                        Section
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedLearners.map((l, i) => (
-                      <tr
-                        key={l.studentId}
-                        className="border-b last:border-0 hover:bg-muted/40"
-                      >
-                        <td className="py-2 pr-3 text-muted-foreground">
-                          {i + 1}
-                        </td>
-                        <td className="py-2 pr-3 font-medium">{l.listName}</td>
-                        <td className="py-2 px-2">{l.lrn}</td>
-                        <td className="py-2 px-2">
-                          {getGradeLevelLabel(l.gradeLevel)}
-                        </td>
-                        <td className="py-2 pl-2">{l.sectionName}</td>
+              <div className="app__table_shell">
+                <div className="app__table_wrapper">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th className="text-left font-medium w-8">#</th>
+                        <th className="text-left font-medium">
+                          Learner
+                        </th>
+                        <th className="text-left font-medium">LRN</th>
+                        <th className="text-left font-medium">Grade</th>
+                        <th className="text-left font-medium">
+                          Section
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {selectedLearners.map((l, i) => (
+                        <tr key={l.studentId}>
+                          <td className="text-muted-foreground">
+                            {i + 1}
+                          </td>
+                          <td className="font-medium">{l.listName}</td>
+                          <td>{l.lrn}</td>
+                          <td>
+                            {getGradeLevelLabel(l.gradeLevel)}
+                          </td>
+                          <td>{l.sectionName}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

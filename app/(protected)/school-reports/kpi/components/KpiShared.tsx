@@ -70,7 +70,7 @@ export function IndicatorSection({
   );
 }
 
-/** Bordered, horizontally scrollable table shell — matches Grade Monitoring. */
+/** The shell every KPI table sits in — the standard app__table dress. */
 export function KpiTable({
   head,
   children,
@@ -79,11 +79,13 @@ export function KpiTable({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-lg border bg-background overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-muted">{head}</thead>
-        <tbody className="divide-y">{children}</tbody>
-      </table>
+    <div className="app__table_shell">
+      <div className="app__table_wrapper">
+        <table className="w-full text-sm">
+          <thead>{head}</thead>
+          <tbody>{children}</tbody>
+        </table>
+      </div>
     </div>
   );
 }

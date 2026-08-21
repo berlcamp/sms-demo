@@ -96,43 +96,43 @@ export function AccessIndicators({
         <KpiTable
           head={
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Level</th>
-              <th className="px-3 py-2 text-left font-medium">Official age</th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th className="text-left font-medium">Level</th>
+              <th className="text-left font-medium">Official age</th>
+              <th className="text-right font-medium">
                 Enrollment (all ages)
               </th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th className="text-right font-medium">
                 Enrollment (official age)
               </th>
-              <th className="px-3 py-2 text-right font-medium">Population</th>
-              <th className="px-3 py-2 text-right font-medium">GER</th>
-              <th className="px-3 py-2 text-right font-medium">NER</th>
-              <th className="px-3 py-2 text-right font-medium">GER − NER</th>
+              <th className="text-right font-medium">Population</th>
+              <th className="text-right font-medium">GER</th>
+              <th className="text-right font-medium">NER</th>
+              <th className="text-right font-medium">GER − NER</th>
             </tr>
           }
         >
           {enrollmentRows.map(({ level, ger, ner }) => (
-            <tr key={level.key} className="hover:bg-muted/40">
-              <td className="px-3 py-2 font-medium">{level.label}</td>
-              <td className="px-3 py-2 text-muted-foreground">
+            <tr key={level.key}>
+              <td className="font-medium">{level.label}</td>
+              <td className="text-muted-foreground">
                 {KPI_POPULATION_LABELS[level.populationKey]}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="text-right tabular-nums">
                 {formatNumber(ger.numerator)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="text-right tabular-nums">
                 {formatNumber(ner.numerator)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+              <td className="text-right tabular-nums text-muted-foreground">
                 {formatNumber(ger.denominator)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums font-medium">
+              <td className="text-right tabular-nums font-medium">
                 {formatPercent(ger.value)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums font-medium">
+              <td className="text-right tabular-nums font-medium">
                 {formatPercent(ner.value)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+              <td className="text-right tabular-nums text-muted-foreground">
                 {formatPercent(difference(ger.value, ner.value))}
               </td>
             </tr>
@@ -149,41 +149,41 @@ export function AccessIndicators({
         <KpiTable
           head={
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Level</th>
-              <th className="px-3 py-2 text-left font-medium">Entrance age</th>
-              <th className="px-3 py-2 text-right font-medium">New entrants</th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th className="text-left font-medium">Level</th>
+              <th className="text-left font-medium">Entrance age</th>
+              <th className="text-right font-medium">New entrants</th>
+              <th className="text-right font-medium">
                 New entrants (entrance age)
               </th>
-              <th className="px-3 py-2 text-right font-medium">Population</th>
-              <th className="px-3 py-2 text-right font-medium">GIR</th>
-              <th className="px-3 py-2 text-right font-medium">NIR</th>
-              <th className="px-3 py-2 text-right font-medium">GIR − NIR</th>
+              <th className="text-right font-medium">Population</th>
+              <th className="text-right font-medium">GIR</th>
+              <th className="text-right font-medium">NIR</th>
+              <th className="text-right font-medium">GIR − NIR</th>
             </tr>
           }
         >
           {intakeRows.map(({ intake, gir, nir }) => (
-            <tr key={intake.key} className="hover:bg-muted/40">
-              <td className="px-3 py-2 font-medium">{intake.label}</td>
-              <td className="px-3 py-2 text-muted-foreground">
+            <tr key={intake.key}>
+              <td className="font-medium">{intake.label}</td>
+              <td className="text-muted-foreground">
                 Age {intake.officialAge}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="text-right tabular-nums">
                 {formatNumber(gir.numerator)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="text-right tabular-nums">
                 {formatNumber(nir.numerator)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+              <td className="text-right tabular-nums text-muted-foreground">
                 {formatNumber(gir.denominator)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums font-medium">
+              <td className="text-right tabular-nums font-medium">
                 {formatPercent(gir.value)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums font-medium">
+              <td className="text-right tabular-nums font-medium">
                 {formatPercent(nir.value)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+              <td className="text-right tabular-nums text-muted-foreground">
                 {formatPercent(difference(gir.value, nir.value))}
               </td>
             </tr>
@@ -200,29 +200,29 @@ export function AccessIndicators({
         <KpiTable
           head={
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Transition</th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th className="text-left font-medium">Transition</th>
+              <th className="text-right font-medium">
                 New entrants (SY {schoolYear})
               </th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th className="text-right font-medium">
                 Enrollment (SY {previousSchoolYear})
               </th>
-              <th className="px-3 py-2 text-right font-medium">
+              <th className="text-right font-medium">
                 Transition Rate
               </th>
             </tr>
           }
         >
           {transitionRows.map(({ transition, rate, feedingEnrollment }) => (
-            <tr key={transition.key} className="hover:bg-muted/40">
-              <td className="px-3 py-2 font-medium">{transition.label}</td>
-              <td className="px-3 py-2 text-right tabular-nums">
+            <tr key={transition.key}>
+              <td className="font-medium">{transition.label}</td>
+              <td className="text-right tabular-nums">
                 {formatNumber(rate.numerator)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+              <td className="text-right tabular-nums text-muted-foreground">
                 {formatNumber(feedingEnrollment)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums font-medium">
+              <td className="text-right tabular-nums font-medium">
                 {formatPercent(rate.value)}
               </td>
             </tr>

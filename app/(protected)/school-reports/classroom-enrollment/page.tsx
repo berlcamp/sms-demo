@@ -127,64 +127,63 @@ export default function Page() {
           No sections found for SY {schoolYear}.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-muted-foreground">
-                <th className="text-left font-medium py-2 pr-3 w-8">#</th>
-                <th className="text-left font-medium py-2 px-2">Grade Level</th>
-                <th className="text-left font-medium py-2 px-2">
-                  Classroom Size
-                </th>
-                <th className="text-left font-medium py-2 px-2">
-                  Section Name
-                </th>
-                <th className="text-right font-medium py-2 px-2">Enrollees</th>
-                <th className="text-right font-medium py-2 px-2">Capacity</th>
-                <th className="text-left font-medium py-2 pl-2">Remarks</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr
-                  key={r.sectionId}
-                  className="border-b last:border-0 hover:bg-muted/40"
-                >
-                  <td className="py-2 pr-3 text-muted-foreground">{i + 1}</td>
-                  <td className="py-2 px-2">
-                    {getGradeLevelLabel(r.gradeLevel)}
-                  </td>
-                  <td className="py-2 px-2">
-                    {r.classroomSize || (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                    {r.roomName && (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        ({r.roomName})
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2 px-2 font-medium">{r.sectionName}</td>
-                  <td className="py-2 px-2 text-right">{r.enrollees}</td>
-                  <td className="py-2 px-2 text-right">{r.capacity ?? "—"}</td>
-                  <td className="py-2 pl-2 text-muted-foreground">
-                    {r.remarks}
-                  </td>
+        <div className="app__table_shell">
+          <div className="app__table_wrapper">
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <th className="text-left font-medium w-8">#</th>
+                  <th className="text-left font-medium">Grade Level</th>
+                  <th className="text-left font-medium">
+                    Classroom Size
+                  </th>
+                  <th className="text-left font-medium">
+                    Section Name
+                  </th>
+                  <th className="text-right font-medium">Enrollees</th>
+                  <th className="text-right font-medium">Capacity</th>
+                  <th className="text-left font-medium">Remarks</th>
                 </tr>
-              ))}
-              <tr className="bg-muted/40 font-semibold">
-                <td colSpan={4} className="py-2 pr-3">
-                  Total ({rows.length} section{rows.length === 1 ? "" : "s"})
-                </td>
-                <td className="py-2 px-2 text-right">{totals.enrollees}</td>
-                <td className="py-2 px-2 text-right">
-                  {totals.capacity > 0 ? totals.capacity : "—"}
-                </td>
-                <td />
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={r.sectionId}>
+                    <td className="text-muted-foreground">{i + 1}</td>
+                    <td>
+                      {getGradeLevelLabel(r.gradeLevel)}
+                    </td>
+                    <td>
+                      {r.classroomSize || (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                      {r.roomName && (
+                        <span className="text-muted-foreground">
+                          {" "}
+                          ({r.roomName})
+                        </span>
+                      )}
+                    </td>
+                    <td className="font-medium">{r.sectionName}</td>
+                    <td className="text-right">{r.enrollees}</td>
+                    <td className="text-right">{r.capacity ?? "—"}</td>
+                    <td className="text-muted-foreground">
+                      {r.remarks}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-muted/40 font-semibold">
+                  <td colSpan={4}>
+                    Total ({rows.length} section{rows.length === 1 ? "" : "s"})
+                  </td>
+                  <td className="text-right">{totals.enrollees}</td>
+                  <td className="text-right">
+                    {totals.capacity > 0 ? totals.capacity : "—"}
+                  </td>
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </ReportShell>

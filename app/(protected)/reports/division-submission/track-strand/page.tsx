@@ -356,7 +356,7 @@ export default function Page() {
                 {loading ? (
                   <Skeleton className="h-20 w-full" />
                 ) : (
-                  <div className="rounded-md border">
+                  <div className="app__table_shell">
                     <Table>
                       <TableHeader>
                         <TableRow>

@@ -340,7 +340,7 @@ export default function Page() {
               <Skeleton className="h-24 w-full" />
             ) : (
               <>
-                <div className="rounded-md border overflow-x-auto">
+                <div className="app__table_shell">
                   <Table>
                     <TableHeader>
                       <TableRow>

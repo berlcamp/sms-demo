@@ -175,6 +175,11 @@ export function DivisionReportShell({
   );
 }
 
+/**
+ * The card every division report's table sits in. `app__table_shell` is what
+ * gives it the same border, muted header and row dividers as the Students,
+ * Rooms and Staff lists; only the numeric alignment is this shell's own.
+ */
 export function ReportTableCard({
   children,
   caption,
@@ -183,18 +188,14 @@ export function ReportTableCard({
   caption?: string;
 }) {
   return (
-    <Card className="overflow-hidden">
+    <div className="app__table_shell [&_tbody_td]:tabular-nums">
       {caption && (
-        <div className="border-b bg-muted/30 px-4 py-2 text-sm font-medium">
+        <div className="border-b border-border bg-muted/50 px-6 py-2 text-sm font-medium">
           {caption}
         </div>
       )}
-      <CardContent className="p-0 overflow-x-auto">
-        <div className="[&_thead_th]:text-xs [&_thead_th]:font-semibold [&_thead_th]:uppercase [&_thead_th]:tracking-wide [&_thead_th]:text-muted-foreground [&_td]:tabular-nums">
-          {children}
-        </div>
-      </CardContent>
-    </Card>
+      {children}
+    </div>
   );
 }
 

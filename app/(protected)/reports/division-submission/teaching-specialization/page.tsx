@@ -276,7 +276,7 @@ export default function Page() {
                 <Skeleton className="h-10 w-full" />
               </div>
             ) : (
-              <div className="rounded-md border">
+              <div className="app__table_shell">
                 <Table>
                   <TableHeader>
                     <TableRow>

@@ -138,67 +138,66 @@ export default function Page() {
               <h3 className="text-sm font-semibold mb-2">
                 {group.teacherName}
               </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-muted-foreground">
-                      <th className="text-left font-medium py-2 pr-3 w-8">#</th>
-                      <th className="text-left font-medium py-2 pr-3">
-                        Subject
-                      </th>
-                      <th className="text-left font-medium py-2 px-2">Grade</th>
-                      <th className="text-left font-medium py-2 px-2">
-                        Section
-                      </th>
-                      <th className="text-left font-medium py-2 px-2">Days</th>
-                      <th className="text-left font-medium py-2 px-2">Time</th>
-                      <th className="text-left font-medium py-2 px-2">Room</th>
-                      <th className="text-right font-medium py-2 px-2">
-                        Min/Wk
-                      </th>
-                      <th className="text-right font-medium py-2 pl-2">
-                        Learners
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.rows.map((r, i) => (
-                      <tr
-                        key={r.scheduleId}
-                        className="border-b last:border-0 hover:bg-muted/40"
-                      >
-                        <td className="py-2 pr-3 text-muted-foreground">
-                          {i + 1}
-                        </td>
-                        <td className="py-2 pr-3 font-medium">
-                          {r.subjectName}
-                        </td>
-                        <td className="py-2 px-2">
-                          {getGradeLevelLabel(r.gradeLevel)}
-                        </td>
-                        <td className="py-2 px-2">{r.sectionName}</td>
-                        <td className="py-2 px-2">{formatDays(r.days)}</td>
-                        <td className="py-2 px-2 whitespace-nowrap">
-                          {formatTime(r.startTime)} - {formatTime(r.endTime)}
-                        </td>
-                        <td className="py-2 px-2">{r.roomName}</td>
-                        <td className="py-2 px-2 text-right">
-                          {r.minutesPerWeek}
-                        </td>
-                        <td className="py-2 pl-2 text-right">{r.learners}</td>
+              <div className="app__table_shell">
+                <div className="app__table_wrapper">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th className="text-left font-medium w-8">#</th>
+                        <th className="text-left font-medium">
+                          Subject
+                        </th>
+                        <th className="text-left font-medium">Grade</th>
+                        <th className="text-left font-medium">
+                          Section
+                        </th>
+                        <th className="text-left font-medium">Days</th>
+                        <th className="text-left font-medium">Time</th>
+                        <th className="text-left font-medium">Room</th>
+                        <th className="text-right font-medium">
+                          Min/Wk
+                        </th>
+                        <th className="text-right font-medium">
+                          Learners
+                        </th>
                       </tr>
-                    ))}
-                    <tr className="bg-muted/40 font-semibold">
-                      <td colSpan={7} className="py-2 pr-3">
-                        Total subjects handled: {group.rows.length}
-                      </td>
-                      <td className="py-2 px-2 text-right">
-                        {group.totalMinutesPerWeek}
-                      </td>
-                      <td />
-                    </tr>
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {group.rows.map((r, i) => (
+                        <tr key={r.scheduleId}>
+                          <td className="text-muted-foreground">
+                            {i + 1}
+                          </td>
+                          <td className="font-medium">
+                            {r.subjectName}
+                          </td>
+                          <td>
+                            {getGradeLevelLabel(r.gradeLevel)}
+                          </td>
+                          <td>{r.sectionName}</td>
+                          <td>{formatDays(r.days)}</td>
+                          <td className="whitespace-nowrap">
+                            {formatTime(r.startTime)} - {formatTime(r.endTime)}
+                          </td>
+                          <td>{r.roomName}</td>
+                          <td className="text-right">
+                            {r.minutesPerWeek}
+                          </td>
+                          <td className="text-right">{r.learners}</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-muted/40 font-semibold">
+                        <td colSpan={7}>
+                          Total subjects handled: {group.rows.length}
+                        </td>
+                        <td className="text-right">
+                          {group.totalMinutesPerWeek}
+                        </td>
+                        <td />
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           ))}

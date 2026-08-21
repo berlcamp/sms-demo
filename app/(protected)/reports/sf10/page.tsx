@@ -282,7 +282,7 @@ export default function Sf10Page() {
               </CardDescription>
             )}
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 app__table_dress">
             {searching ? (
               <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />

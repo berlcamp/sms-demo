@@ -236,39 +236,39 @@ export function RatioIndicators({
           <KpiTable
             head={
               <tr>
-                <th className="px-3 py-2 text-left font-medium">Level</th>
-                <th className="px-3 py-2 text-right font-medium">Female</th>
-                <th className="px-3 py-2 text-right font-medium">Male</th>
-                <th className="px-3 py-2 text-right font-medium">
+                <th className="text-left font-medium">Level</th>
+                <th className="text-right font-medium">Female</th>
+                <th className="text-right font-medium">Male</th>
+                <th className="text-right font-medium">
                   GPI (enrollment)
                 </th>
-                <th className="px-3 py-2 text-right font-medium">
+                <th className="text-right font-medium">
                   GPI (official age)
                 </th>
-                <th className="px-3 py-2 text-left font-medium">
+                <th className="text-left font-medium">
                   Interpretation
                 </th>
               </tr>
             }
           >
             {gpiRows.map((row) => (
-              <tr key={row.key} className="hover:bg-muted/40">
-                <td className="px-3 py-2 font-medium">{row.label}</td>
-                <td className="px-3 py-2 text-right tabular-nums">
+              <tr key={row.key}>
+                <td className="font-medium">{row.label}</td>
+                <td className="text-right tabular-nums">
                   {formatNumber(row.female)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className="text-right tabular-nums">
                   {formatNumber(row.male)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums font-medium">
+                <td className="text-right tabular-nums font-medium">
                   {row.gpi === null ? "—" : row.gpi.toFixed(3)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className="text-right tabular-nums">
                   {row.gpiOfficialAge === null
                     ? "—"
                     : row.gpiOfficialAge.toFixed(3)}
                 </td>
-                <td className="px-3 py-2 text-muted-foreground">
+                <td className="text-muted-foreground">
                   {interpretGpi(row.gpi)}
                 </td>
               </tr>
@@ -279,29 +279,29 @@ export function RatioIndicators({
         <KpiTable
           head={
             <tr>
-              <th className="px-3 py-2 text-left font-medium">
+              <th className="text-left font-medium">
                 Completion Rate by sex
               </th>
-              <th className="px-3 py-2 text-right font-medium">Female</th>
-              <th className="px-3 py-2 text-right font-medium">Male</th>
-              <th className="px-3 py-2 text-right font-medium">GPI</th>
-              <th className="px-3 py-2 text-left font-medium">Interpretation</th>
+              <th className="text-right font-medium">Female</th>
+              <th className="text-right font-medium">Male</th>
+              <th className="text-right font-medium">GPI</th>
+              <th className="text-left font-medium">Interpretation</th>
             </tr>
           }
         >
           {completionGpiRows.map((row) => (
-            <tr key={row.key} className="hover:bg-muted/40">
-              <td className="px-3 py-2 font-medium">{row.label}</td>
-              <td className="px-3 py-2 text-right tabular-nums">
+            <tr key={row.key}>
+              <td className="font-medium">{row.label}</td>
+              <td className="text-right tabular-nums">
                 {formatPercent(row.female)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="text-right tabular-nums">
                 {formatPercent(row.male)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums font-medium">
+              <td className="text-right tabular-nums font-medium">
                 {row.gpi === null ? "—" : row.gpi.toFixed(3)}
               </td>
-              <td className="px-3 py-2 text-muted-foreground">
+              <td className="text-muted-foreground">
                 {interpretGpi(row.gpi)}
               </td>
             </tr>
@@ -383,45 +383,45 @@ export function RatioIndicators({
             <KpiTable
               head={
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium">School</th>
-                  <th className="px-3 py-2 text-right font-medium">
+                  <th className="text-left font-medium">School</th>
+                  <th className="text-right font-medium">
                     Enrollment
                   </th>
-                  <th className="px-3 py-2 text-right font-medium">
+                  <th className="text-right font-medium">
                     {IQR_RESOURCE_LABELS[iqrResource]}
                   </th>
-                  <th className="px-3 py-2 text-right font-medium">Ratio</th>
-                  <th className="px-3 py-2 text-right font-medium">
+                  <th className="text-right font-medium">Ratio</th>
+                  <th className="text-right font-medium">
                     CF enrollment
                   </th>
-                  <th className="px-3 py-2 text-right font-medium">
+                  <th className="text-right font-medium">
                     % CF enrollment
                   </th>
-                  <th className="px-3 py-2 text-right font-medium">
+                  <th className="text-right font-medium">
                     CF {IQR_RESOURCE_LABELS[iqrResource].toLowerCase()}
                   </th>
                 </tr>
               }
             >
               {iqr.rows.map((row) => (
-                <tr key={row.schoolId} className="hover:bg-muted/40">
-                  <td className="px-3 py-2 font-medium">{row.schoolName}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                <tr key={row.schoolId}>
+                  <td className="font-medium">{row.schoolName}</td>
+                  <td className="text-right tabular-nums">
                     {formatNumber(row.enrollment)}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td className="text-right tabular-nums">
                     {formatNumber(row.resources)}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td className="text-right tabular-nums">
                     {Number.isFinite(row.ratio) ? formatRatio(row.ratio) : "—"}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                  <td className="text-right tabular-nums text-muted-foreground">
                     {formatNumber(row.cumulativeEnrollment)}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                  <td className="text-right tabular-nums text-muted-foreground">
                     {row.cumulativeEnrollmentPercent.toFixed(2)}%
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                  <td className="text-right tabular-nums text-muted-foreground">
                     {formatNumber(row.cumulativeResources)}
                   </td>
                 </tr>
